@@ -11,6 +11,7 @@ from db.repositories.fact_extraction_metrics import FactExtractionMetricReposito
 from db.repositories.ingestion_metrics import IngestionMetricRepository
 from db.repositories.memory_items import MemoryItemRepository
 from db.repositories.memory_relations import MemoryRelationRepository
+from db.repositories.reflection_metrics import ReflectionMetricRepository
 from embeddings.base import Embedder
 from vector.qdrant_client import MnemosQdrantClient
 
@@ -66,10 +67,30 @@ class MemoryService:
       repository = MemoryItemRepository(session)
       return repository.list_by_domain_kind(domain=domain, kind=kind)
 
+  def list_items_by_domain(self, domain: str):
+    with self.session_factory() as session:
+      repository = MemoryItemRepository(session)
+      return repository.list_by_domain(domain=domain)
+
   def list_facts_by_source_item_id(self, *, source_item_id: str):
     with self.session_factory() as session:
       repository = MemoryItemRepository(session)
       return repository.list_facts_by_source_item_id(source_item_id=source_item_id)
+
+  def list_reflections_by_fingerprint(
+    self,
+    *,
+    domain: str,
+    theme: str,
+    source_fact_fingerprint: str,
+  ):
+    with self.session_factory() as session:
+      repository = MemoryItemRepository(session)
+      return repository.list_reflections_by_fingerprint(
+        domain=domain,
+        theme=theme,
+        source_fact_fingerprint=source_fact_fingerprint,
+      )
 
   def record_ingestion_metrics(
     self,
@@ -107,12 +128,31 @@ class MemoryService:
       )
       session.commit()
 
-  def create_related_item_record(
+  def record_reflection_metrics(
+    self,
+    *,
+    domain: str,
+    runs: int = 0,
+    reflections_created: int = 0,
+    skipped: int = 0,
+    errors: int = 0,
+  ) -> None:
+    with self.session_factory() as session:
+      repository = ReflectionMetricRepository(session)
+      repository.increment(
+        domain=domain,
+        runs=runs,
+        reflections_created=reflections_created,
+        skipped=skipped,
+        errors=errors,
+      )
+      session.commit()
+
+  def create_item_with_relations(
     self,
     payload: MemoryCreateRequest,
     *,
-    target_item_id: UUID,
-    relation_type: str,
+    relations: list[tuple[UUID, str]],
   ):
     vector = self.embedder.embed_text(payload.statement)
     with self.session_factory() as session:
@@ -125,11 +165,12 @@ class MemoryService:
         confidence=payload.confidence,
         metadata=payload.metadata,
       )
-      relation_repository.create(
-        source_item_id=item.id,
-        target_item_id=target_item_id,
-        relation_type=relation_type,
-      )
+      for target_item_id, relation_type in relations:
+        relation_repository.create(
+          source_item_id=item.id,
+          target_item_id=target_item_id,
+          relation_type=relation_type,
+        )
       self.qdrant.ensure_collection(self.settings.collection_for_domain(payload.domain))
       self.qdrant.upsert_item(
         collection_name=self.settings.collection_for_domain(payload.domain),
@@ -145,6 +186,18 @@ class MemoryService:
       session.commit()
       session.refresh(item)
       return item
+
+  def create_related_item_record(
+    self,
+    payload: MemoryCreateRequest,
+    *,
+    target_item_id: UUID,
+    relation_type: str,
+  ):
+    return self.create_item_with_relations(
+      payload,
+      relations=[(target_item_id, relation_type)],
+    )
 
   def _create_item(self, payload: MemoryCreateRequest):
     vector = self.embedder.embed_text(payload.statement)

@@ -66,6 +66,32 @@ class Settings(BaseSettings):
   fact_max_facts_per_item: int = Field(default=5, validation_alias="FACT_MAX_FACTS_PER_ITEM")
   fact_min_chars: int = Field(default=10, validation_alias="FACT_MIN_CHARS")
   fact_max_chars: int = Field(default=300, validation_alias="FACT_MAX_CHARS")
+  reflection_llm_provider: str = Field(
+    default="mock",
+    validation_alias="REFLECTION_LLM_PROVIDER",
+  )
+  reflection_llm_model: str = Field(
+    default="mock-reflection-llm",
+    validation_alias="REFLECTION_LLM_MODEL",
+  )
+  reflection_llm_base_url: str | None = Field(
+    default=None,
+    validation_alias="REFLECTION_LLM_BASE_URL",
+  )
+  reflection_llm_api_key: str | None = Field(
+    default=None,
+    validation_alias="REFLECTION_LLM_API_KEY",
+  )
+  reflection_llm_timeout_seconds: float = Field(
+    default=20.0,
+    validation_alias="REFLECTION_LLM_TIMEOUT_SECONDS",
+  )
+  reflection_max_per_theme: int = Field(
+    default=5,
+    validation_alias="REFLECTION_MAX_PER_THEME",
+  )
+  reflection_min_chars: int = Field(default=20, validation_alias="REFLECTION_MIN_CHARS")
+  reflection_max_chars: int = Field(default=300, validation_alias="REFLECTION_MAX_CHARS")
 
   @computed_field
   @property

@@ -22,7 +22,7 @@ def ready(request: Request) -> ReadinessResponse:
     with request.app.state.session_factory() as session:
       session.execute(text("SELECT 1"))
     POSTGRES_HEALTH.set(1)
-  except Exception as exc:  # pragma: no cover - defensive
+  except Exception:  # pragma: no cover - defensive
     postgres_status = "failed"
     POSTGRES_HEALTH.set(0)
     READINESS_FAILURES.labels(dependency="postgres").inc()
@@ -31,7 +31,7 @@ def ready(request: Request) -> ReadinessResponse:
   try:
     request.app.state.qdrant.ping()
     QDRANT_HEALTH.set(1)
-  except Exception as exc:  # pragma: no cover - defensive
+  except Exception:  # pragma: no cover - defensive
     qdrant_status = "failed"
     QDRANT_HEALTH.set(0)
     READINESS_FAILURES.labels(dependency="qdrant").inc()

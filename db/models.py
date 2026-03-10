@@ -100,3 +100,70 @@ class FactExtractionMetric(Base):
     nullable=False,
     default=lambda: datetime.now(UTC),
   )
+
+
+class ReflectionMetric(Base):
+  __tablename__ = "reflection_metrics"
+
+  domain: Mapped[str] = mapped_column(String(64), primary_key=True)
+  runs_total: Mapped[int] = mapped_column(nullable=False, default=0)
+  reflections_created_total: Mapped[int] = mapped_column(nullable=False, default=0)
+  skipped_total: Mapped[int] = mapped_column(nullable=False, default=0)
+  errors_total: Mapped[int] = mapped_column(nullable=False, default=0)
+  updated_at: Mapped[datetime] = mapped_column(
+    DateTime(timezone=True),
+    nullable=False,
+    default=lambda: datetime.now(UTC),
+  )
+
+
+class MemoryCandidate(Base):
+  __tablename__ = "memory_candidates"
+  __table_args__ = (
+    Index("idx_memory_candidates_status", "status"),
+    Index("idx_memory_candidates_domain", "domain"),
+    Index("idx_memory_candidates_kind", "kind"),
+    Index("idx_memory_candidates_domain_status", "domain", "status"),
+  )
+
+  id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+  domain: Mapped[str] = mapped_column(String(64), nullable=False)
+  kind: Mapped[str] = mapped_column(String(64), nullable=False)
+  statement: Mapped[str] = mapped_column(Text, nullable=False)
+  confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+  agent_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+  evidence_json: Mapped[dict[str, object] | None] = mapped_column(
+    "evidence",
+    JSON().with_variant(JSONB, "postgresql"),
+    nullable=True,
+  )
+  status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+  metadata_json: Mapped[dict[str, object] | None] = mapped_column(
+    "metadata",
+    JSON().with_variant(JSONB, "postgresql"),
+    nullable=True,
+  )
+  created_at: Mapped[datetime] = mapped_column(
+    DateTime(timezone=True),
+    nullable=False,
+    default=lambda: datetime.now(UTC),
+  )
+  reviewed_at: Mapped[datetime | None] = mapped_column(
+    DateTime(timezone=True),
+    nullable=True,
+  )
+
+
+class CandidateMetric(Base):
+  __tablename__ = "candidate_metrics"
+
+  domain: Mapped[str] = mapped_column(String(64), primary_key=True)
+  created_total: Mapped[int] = mapped_column(nullable=False, default=0)
+  accepted_total: Mapped[int] = mapped_column(nullable=False, default=0)
+  rejected_total: Mapped[int] = mapped_column(nullable=False, default=0)
+  validation_failures_total: Mapped[int] = mapped_column(nullable=False, default=0)
+  updated_at: Mapped[datetime] = mapped_column(
+    DateTime(timezone=True),
+    nullable=False,
+    default=lambda: datetime.now(UTC),
+  )

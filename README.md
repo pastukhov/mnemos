@@ -1,10 +1,19 @@
 # Mnemos
 
-Mnemos is a production-oriented memory gateway service. PostgreSQL is the source of truth for memory items, Qdrant stores vectors for retrieval, and FastAPI exposes write/query/health/metrics endpoints. Phase 2 adds deterministic ingestion of questionnaire and notes sources into `memory_items`.
+Mnemos is a production-oriented memory gateway service. PostgreSQL is
+the source of truth for memory items, Qdrant stores vectors for
+retrieval, and FastAPI exposes write/query/health/metrics endpoints.
+Phase 2 adds deterministic ingestion of questionnaire and notes sources
+into `memory_items`.
 Phase 3 adds an MCP server that exposes Mnemos to AI agents through MCP
 while continuing to use the REST API as the backend boundary.
 Phase 4 adds an LLM-backed fact extraction pipeline that derives `fact`
 items from accepted `raw` items and stores `derived_from` relations.
+Phase 5 adds a reflection generation pipeline that synthesizes accepted
+`fact` items into evidence-backed `reflection` items linked through
+`supported_by` relations.
+Phase 6 adds candidate-based memory governance so agent-generated memory
+is proposed, validated, and only then merged into accepted memory.
 
 ## Architecture
 
@@ -15,6 +24,7 @@ items from accepted `raw` items and stores `derived_from` relations.
 - `embeddings/`: mock and OpenAI-compatible embedding providers
 - `mcp_server/`: FastMCP server, REST client, and MCP tools
 - `pipelines/extract/`: fact extraction schema, LLM client, and runner
+- `pipelines/governance/`: candidate validation and merge pipeline
 - `services/`: write/query orchestration
 - `migrations/`: Alembic migration history
 - `scripts/`: bootstrap, collection init, seed data
@@ -25,10 +35,13 @@ items from accepted `raw` items and stores `derived_from` relations.
 Flow summary:
 
 1. `POST /memory/items` validates input.
-2. The service inserts the row into PostgreSQL inside a transaction.
-3. The statement is embedded and upserted into the per-domain Qdrant collection.
-4. `POST /memory/query` embeds the query, searches Qdrant, then hydrates ranked results from PostgreSQL.
-5. MCP tools call the REST gateway and return agent-friendly tool results.
+1. The service inserts the row into PostgreSQL inside a transaction.
+1. The statement is embedded and upserted into the per-domain Qdrant
+   collection.
+1. `POST /memory/query` embeds the query, searches Qdrant, then hydrates
+   ranked results from PostgreSQL.
+1. MCP tools call the REST gateway and return agent-friendly tool
+   results.
 
 ## Local Startup
 
@@ -38,13 +51,19 @@ Flow summary:
 cp .env.example .env
 ```
 
-2. Create local virtualenv and install dependencies:
+1. Create local virtualenv and install dependencies:
 
 ```bash
 make venv
 ```
 
-3. Start the stack:
+Install local git hooks:
+
+```bash
+make install-hooks
+```
+
+1. Start the stack:
 
 ```bash
 make up
@@ -52,9 +71,11 @@ make up
 
 The API will be available at `http://localhost:8000`.
 
-The checked-in `.env.example` is host-friendly: local CLI, Alembic, and tests use `localhost`, while Docker Compose overrides the `mnemos` container to talk to `postgres` and `qdrant` over the internal network.
+The checked-in `.env.example` is host-friendly: local CLI, Alembic, and
+tests use `localhost`, while Docker Compose overrides the `mnemos`
+container to talk to `postgres` and `qdrant` over the internal network.
 
-4. Run a live smoke check against the running stack:
+1. Run a live smoke check against the running stack:
 
 ```bash
 make smoke
@@ -91,9 +112,18 @@ Required environment variables:
 - `FACT_MAX_FACTS_PER_ITEM`
 - `FACT_MIN_CHARS`
 - `FACT_MAX_CHARS`
+- `REFLECTION_LLM_PROVIDER`
+- `REFLECTION_LLM_MODEL`
+- `REFLECTION_LLM_BASE_URL`
+- `REFLECTION_LLM_API_KEY`
+- `REFLECTION_LLM_TIMEOUT_SECONDS`
+- `REFLECTION_MAX_PER_THEME`
+- `REFLECTION_MIN_CHARS`
+- `REFLECTION_MAX_CHARS`
 - `QDRANT_VECTOR_SIZE`
 
-Default local development uses `EMBEDDING_PROVIDER=mock`. For an OpenAI-compatible endpoint, set:
+Default local development uses `EMBEDDING_PROVIDER=mock`. For an
+OpenAI-compatible endpoint, set:
 
 ```bash
 EMBEDDING_PROVIDER=openai_compatible
@@ -110,7 +140,8 @@ Run migrations locally:
 .venv/bin/python -m alembic upgrade head
 ```
 
-Inside Docker, migrations run automatically from `scripts/bootstrap.sh` on container startup.
+Inside Docker, migrations run automatically from `scripts/bootstrap.sh`
+on container startup.
 
 ## Ingestion
 
@@ -133,11 +164,16 @@ make ingest-notes
 
 Expected local dataset layout:
 
-- `data/raw/questionnaire.md`: user-provided questionnaire source, intentionally not committed
-- `data/raw/questionnaire.yaml`: optional user-provided YAML questionnaire source, intentionally not committed
-- `data/raw/notes.jsonl`: optional local notes source, intentionally not committed
+- `data/raw/questionnaire.md`: user-provided questionnaire source,
+  intentionally not committed
+- `data/raw/questionnaire.yaml`: optional user-provided YAML
+  questionnaire source, intentionally not committed
+- `data/raw/notes.jsonl`: optional local notes source, intentionally not
+  committed
 
-Ingestion is idempotent. Duplicate detection uses `metadata.source_type + metadata.source_id`, backed by PostgreSQL expression indexes and a unique index guard.
+Ingestion is idempotent. Duplicate detection uses
+`metadata.source_type + metadata.source_id`, backed by PostgreSQL
+expression indexes and a unique index guard.
 
 ## Fact Extraction
 
@@ -165,6 +201,76 @@ FACT_LLM_BASE_URL=https://your-endpoint.example/v1
 FACT_LLM_API_KEY=secret
 FACT_LLM_MODEL=gpt-4.1-mini
 ```
+
+## Reflection Generation
+
+Phase 5 reflection generation commands:
+
+```bash
+mnemos reflect build
+mnemos reflect build --domain self
+mnemos reflect build --theme motivation
+```
+
+The runner:
+
+- loads accepted `fact` items for the selected domain
+- groups facts by `metadata.theme` or upstream questionnaire
+  `metadata.topic`
+- computes a stable fingerprint per theme batch for idempotency
+- calls the configured reflection LLM client
+- stores `reflection` items plus `supported_by` relations
+- indexes reflections in Qdrant
+
+Default local development uses `REFLECTION_LLM_PROVIDER=mock`. For an
+OpenAI-compatible endpoint, set:
+
+```bash
+REFLECTION_LLM_PROVIDER=openai_compatible
+REFLECTION_LLM_BASE_URL=https://your-endpoint.example/v1
+REFLECTION_LLM_API_KEY=secret
+REFLECTION_LLM_MODEL=gpt-4.1-mini
+```
+
+## Memory Governance
+
+Phase 6 candidate governance endpoints:
+
+```bash
+curl -X POST http://localhost:8000/memory/candidate \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "domain": "self",
+    "kind": "fact",
+    "statement": "User prefers observable architectures.",
+    "confidence": 0.78,
+    "agent_id": "codex_cli",
+    "evidence": {"source_fact_ids": ["<fact-uuid-1>", "<fact-uuid-2>"]}
+  }'
+
+curl "http://localhost:8000/memory/candidates?status=pending"
+curl -X POST http://localhost:8000/memory/candidate/<candidate-uuid>/accept
+curl -X POST http://localhost:8000/memory/candidate/<candidate-uuid>/reject \
+  -H 'Content-Type: application/json' \
+  -d '{"reason": "manual review"}'
+```
+
+CLI commands:
+
+```bash
+mnemos candidates list
+mnemos candidates list --status pending
+mnemos candidates accept <candidate-uuid>
+mnemos candidates reject <candidate-uuid> --reason "manual review"
+```
+
+The governance runner:
+
+- stores agent proposals in `memory_candidates`
+- validates duplicate, evidence, and basic contradiction cases on accept
+- merges valid candidates into `memory_items`
+- creates `supported_by` relations from accepted items to evidence facts
+- keeps rejected candidates for audit history
 
 ## Seed Example
 
@@ -220,6 +326,27 @@ curl http://localhost:8000/health/ready
 curl http://localhost:8000/metrics
 ```
 
+## Local Quality Gates
+
+Local git hooks use `pre-commit` plus the existing Conventional Commit
+`commit-msg` hook.
+
+Installed checks:
+
+- `ruff` for Python linting
+- `mdl` for Markdown linting
+- `pytest -q` for the test suite
+- Conventional Commit validation on commit messages
+
+Manual commands:
+
+```bash
+.venv/bin/pre-commit run --all-files
+.venv/bin/ruff check .
+.venv/bin/pytest -q
+mdl docs/PHASE5_REFLECTION_LAYER.md
+```
+
 ## MCP Server
 
 Phase 3 adds a dedicated MCP server backed by the existing REST API.
@@ -241,7 +368,8 @@ mnemos mcp-server --transport streamable-http --host 0.0.0.0 --port 9000
 Optional Docker HTTP service:
 
 ```bash
-docker compose -f docker/docker-compose.yml --env-file .env --profile mcp-http up -d mnemos-mcp
+docker compose -f docker/docker-compose.yml --env-file .env \
+  --profile mcp-http up -d mnemos-mcp
 ```
 
 That service exposes `http://localhost:9000/mcp` only when the
@@ -265,10 +393,15 @@ Exposed tools:
 - `search_memory`
 - `get_memory_item`
 - `add_memory_note`
+- `propose_memory_item`
 - `get_context`
 
 When `domain` is omitted in `search_memory` and `get_context`, the MCP
 server queries all Mnemos domains and aggregates results per domain.
+
+Under Phase 6 governance, `add_memory_note` and `propose_memory_item`
+create candidate memory through `/memory/candidate`; MCP tools no longer
+write directly into accepted memory.
 
 ## Testing
 
@@ -342,6 +475,8 @@ Current coverage includes:
 - fact extraction from raw items
 - duplicate extraction skipping
 - derived_from relation creation
+- reflection generation and `supported_by` relation creation
+- candidate creation, validation, acceptance, and rejection flows
 - fact indexing after extraction
 
 ## Limitations
@@ -353,4 +488,5 @@ Current coverage includes:
 
 ## Roadmap Note
 
-Phase 3 still remains out of scope here: fact extraction, reflections, agent roles, and candidate write pipelines.
+Earlier roadmap notes from Phase 1 are now superseded by implemented
+Phase 2 through Phase 5 functionality in this repository.

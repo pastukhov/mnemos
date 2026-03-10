@@ -83,6 +83,7 @@ def client():
   app.state.qdrant = FakeQdrant(settings)
   app.state.embedder = MockEmbedder(vector_size=settings.qdrant_vector_size)
   from services.memory_service import MemoryService
+  from services.memory_governance_service import MemoryGovernanceService
   from services.retrieval_service import RetrievalService
   from core.metrics import MEMORY_QUERY_DURATION, MEMORY_QUERY_TOTAL
 
@@ -100,5 +101,6 @@ def client():
     query_counter=MEMORY_QUERY_TOTAL,
     query_duration=MEMORY_QUERY_DURATION,
   )
+  app.state.governance_service = MemoryGovernanceService(session_factory)
   with TestClient(app) as test_client:
     yield test_client

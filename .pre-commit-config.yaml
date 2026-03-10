@@ -1,0 +1,18 @@
+repos:
+  - repo: local
+    hooks:
+      - id: ruff
+        name: ruff
+        entry: .venv/bin/ruff check
+        language: system
+        types_or: [python, pyi]
+      - id: mdl
+        name: mdl
+        entry: mdl
+        language: system
+        types: [markdown]
+      - id: pytest
+        name: pytest
+        entry: .venv/bin/pytest -q
+        language: system
+        pass_filenames: false

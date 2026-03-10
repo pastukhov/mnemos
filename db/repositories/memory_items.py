@@ -56,6 +56,17 @@ class MemoryItemRepository:
     )
     return list(self.session.execute(query).scalars())
 
+  def list_by_domain(self, *, domain: str, status: str = "accepted") -> list[MemoryItem]:
+    query = (
+      select(MemoryItem)
+      .where(
+        MemoryItem.domain == domain,
+        MemoryItem.status == status,
+      )
+      .order_by(MemoryItem.created_at.asc())
+    )
+    return list(self.session.execute(query).scalars())
+
   def list_facts_by_source_item_id(self, *, source_item_id: str) -> list[MemoryItem]:
     query = (
       select(MemoryItem)
@@ -63,6 +74,28 @@ class MemoryItemRepository:
         MemoryItem.kind == "fact",
         MemoryItem.metadata_json["source_type"].as_string() == "fact_extraction",
         MemoryItem.metadata_json["source_item_id"].as_string() == source_item_id,
+      )
+      .order_by(MemoryItem.created_at.asc())
+    )
+    return list(self.session.execute(query).scalars())
+
+  def list_reflections_by_fingerprint(
+    self,
+    *,
+    domain: str,
+    theme: str,
+    source_fact_fingerprint: str,
+    status: str = "accepted",
+  ) -> list[MemoryItem]:
+    query = (
+      select(MemoryItem)
+      .where(
+        MemoryItem.domain == domain,
+        MemoryItem.kind == "reflection",
+        MemoryItem.status == status,
+        MemoryItem.metadata_json["source_type"].as_string() == "reflection_generation",
+        MemoryItem.metadata_json["theme"].as_string() == theme,
+        MemoryItem.metadata_json["source_fact_fingerprint"].as_string() == source_fact_fingerprint,
       )
       .order_by(MemoryItem.created_at.asc())
     )
