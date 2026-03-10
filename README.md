@@ -73,9 +73,8 @@ docker compose up -d --build
 
 The API will be available at `http://localhost:8000`.
 
-The checked-in `.env.example` is host-friendly: local CLI, Alembic, and
-tests use `localhost`, while Docker Compose overrides the `mnemos`
-container to talk to `postgres` and `qdrant` over the internal network.
+The checked-in `.env.example` intentionally omits Compose-internal
+addresses. Service-to-service networking is defined directly in Compose.
 
 1. Run a live smoke check against the running stack:
 
@@ -88,25 +87,17 @@ make smoke
 Required environment variables:
 
 - `MNEMOS_ENV`
-- `MNEMOS_HOST`
-- `MNEMOS_PORT`
 - `MNEMOS_LOG_LEVEL`
-- `MNEMOS_URL`
 - `MNEMOS_TIMEOUT_SECONDS`
 - `MCP_SERVER_HOST`
 - `MCP_SERVER_PORT`
 - `MCP_SERVER_TRANSPORT`
-- `POSTGRES_HOST`
-- `POSTGRES_PORT`
 - `POSTGRES_DB`
 - `POSTGRES_USER`
 - `POSTGRES_PASSWORD`
-- `QDRANT_URL`
-- `EMBEDDING_PROVIDER`
 - `EMBEDDING_MODEL`
 - `EMBEDDING_BASE_URL`
 - `EMBEDDING_API_KEY`
-- `FACT_LLM_PROVIDER`
 - `FACT_LLM_MODEL`
 - `FACT_LLM_BASE_URL`
 - `FACT_LLM_API_KEY`
@@ -114,7 +105,6 @@ Required environment variables:
 - `FACT_MAX_FACTS_PER_ITEM`
 - `FACT_MIN_CHARS`
 - `FACT_MAX_CHARS`
-- `REFLECTION_LLM_PROVIDER`
 - `REFLECTION_LLM_MODEL`
 - `REFLECTION_LLM_BASE_URL`
 - `REFLECTION_LLM_API_KEY`
@@ -124,30 +114,38 @@ Required environment variables:
 - `REFLECTION_MAX_CHARS`
 - `QDRANT_VECTOR_SIZE`
 
-Default local development uses `EMBEDDING_PROVIDER=mock`. For an
-OpenAI-compatible endpoint, set:
+Compose-internal addresses for PostgreSQL, Qdrant, Mnemos, and the
+optional local mock OpenAI API are defined in Compose files, not in
+`.env`.
+
+Embedding, fact extraction, and reflection generation use explicit
+OpenAI-compatible providers. Point them either at a real endpoint or at
+the local mock service from `docker-compose.local-mock.yml`.
+
+Example:
 
 ```bash
-EMBEDDING_PROVIDER=openai_compatible
 EMBEDDING_BASE_URL=https://your-endpoint.example/v1
 EMBEDDING_API_KEY=secret
 EMBEDDING_MODEL=text-embedding-3-small
+FACT_LLM_BASE_URL=https://your-endpoint.example/v1
+FACT_LLM_API_KEY=secret
+FACT_LLM_MODEL=gpt-4.1-mini
+REFLECTION_LLM_BASE_URL=https://your-endpoint.example/v1
+REFLECTION_LLM_API_KEY=secret
+REFLECTION_LLM_MODEL=gpt-4.1-mini
 ```
 
 ## Migrations
 
-Run migrations locally:
-
-```bash
-.venv/bin/python -m alembic upgrade head
-```
-
 Inside Docker, migrations run automatically from `scripts/bootstrap.sh`
-on container startup.
+on container startup. The primary interface to the running system is the
+HTTP API on `localhost:8000` and the MCP endpoint on `localhost:9000`.
 
 ## Ingestion
 
-Phase 2 ingestion commands:
+Phase 2 ingestion commands are available through the local CLI when you
+need operational access:
 
 ```bash
 mnemos ingest questionnaire data/raw/questionnaire.md
@@ -194,14 +192,11 @@ The runner:
 - stores `fact` items plus `derived_from` relations
 - indexes extracted facts in Qdrant
 
-Default local development uses `FACT_LLM_PROVIDER=mock`. For an
-OpenAI-compatible endpoint, set:
+Local mock OpenAI-compatible stack:
 
 ```bash
-FACT_LLM_PROVIDER=openai_compatible
-FACT_LLM_BASE_URL=https://your-endpoint.example/v1
-FACT_LLM_API_KEY=secret
-FACT_LLM_MODEL=gpt-4.1-mini
+cp .env.local-mock.example .env
+docker compose -f docker-compose.yml -f docker-compose.local-mock.yml up -d --build
 ```
 
 ## Reflection Generation
@@ -224,15 +219,10 @@ The runner:
 - stores `reflection` items plus `supported_by` relations
 - indexes reflections in Qdrant
 
-Default local development uses `REFLECTION_LLM_PROVIDER=mock`. For an
-OpenAI-compatible endpoint, set:
+The local mock API is published on `http://localhost:18090/v1`.
 
-```bash
-REFLECTION_LLM_PROVIDER=openai_compatible
-REFLECTION_LLM_BASE_URL=https://your-endpoint.example/v1
-REFLECTION_LLM_API_KEY=secret
-REFLECTION_LLM_MODEL=gpt-4.1-mini
-```
+For product deployment, use only `docker-compose.yml` plus real
+OpenAI-compatible endpoint values in `.env`.
 
 ## Memory Governance
 

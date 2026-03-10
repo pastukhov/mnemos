@@ -69,9 +69,8 @@ make up
 
 API будет доступен на `http://localhost:8000`.
 
-`.env.example` уже дружелюбен к хостовой машине: локальные CLI,
-Alembic и tests используют `localhost`, а Docker Compose переопределяет
-адреса внутри контейнера `mnemos` на `postgres` и `qdrant`.
+`.env.example` намеренно не содержит внутренних адресов Compose.
+Сетевое взаимодействие между сервисами задаётся прямо в Compose.
 
 1. Прогони live smoke check:
 
@@ -83,41 +82,49 @@ make smoke
 
 Ключевые переменные окружения:
 
-- `MNEMOS_ENV`, `MNEMOS_HOST`, `MNEMOS_PORT`, `MNEMOS_LOG_LEVEL`
-- `MNEMOS_URL`, `MNEMOS_TIMEOUT_SECONDS`
+- `MNEMOS_ENV`, `MNEMOS_LOG_LEVEL`
+- `MNEMOS_TIMEOUT_SECONDS`
 - `MCP_SERVER_HOST`, `MCP_SERVER_PORT`, `MCP_SERVER_TRANSPORT`
-- `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`,
-  `POSTGRES_PASSWORD`
-- `QDRANT_URL`, `QDRANT_VECTOR_SIZE`
-- `EMBEDDING_PROVIDER`, `EMBEDDING_MODEL`, `EMBEDDING_BASE_URL`,
-  `EMBEDDING_API_KEY`
-- `FACT_LLM_PROVIDER`, `FACT_LLM_MODEL`, `FACT_LLM_BASE_URL`,
-  `FACT_LLM_API_KEY`, `FACT_LLM_TIMEOUT_SECONDS`
+- `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
+- `QDRANT_VECTOR_SIZE`
+- `EMBEDDING_MODEL`, `EMBEDDING_BASE_URL`, `EMBEDDING_API_KEY`
+- `FACT_LLM_MODEL`, `FACT_LLM_BASE_URL`, `FACT_LLM_API_KEY`,
+  `FACT_LLM_TIMEOUT_SECONDS`
 - `FACT_MAX_FACTS_PER_ITEM`, `FACT_MIN_CHARS`, `FACT_MAX_CHARS`
-- `REFLECTION_LLM_PROVIDER`, `REFLECTION_LLM_MODEL`,
-  `REFLECTION_LLM_BASE_URL`, `REFLECTION_LLM_API_KEY`,
+- `REFLECTION_LLM_MODEL`, `REFLECTION_LLM_BASE_URL`,
+  `REFLECTION_LLM_API_KEY`,
   `REFLECTION_LLM_TIMEOUT_SECONDS`
 - `REFLECTION_MAX_PER_THEME`, `REFLECTION_MIN_CHARS`,
   `REFLECTION_MAX_CHARS`
 
-Для локальной разработки по умолчанию используются mock providers.
-Если нужен OpenAI-compatible endpoint, задай `*_BASE_URL`,
-`*_API_KEY` и нужную модель в `.env`.
+Embedding, fact extraction и reflection generation используют явные
+`openai_compatible` providers. В `.env` можно указать либо реальный
+endpoint, либо локальный mock-сервис из `docker-compose.local-mock.yml`.
+
+Пример:
+
+```bash
+EMBEDDING_BASE_URL=https://your-endpoint.example/v1
+EMBEDDING_API_KEY=secret
+EMBEDDING_MODEL=text-embedding-3-small
+FACT_LLM_BASE_URL=https://your-endpoint.example/v1
+FACT_LLM_API_KEY=secret
+FACT_LLM_MODEL=gpt-4.1-mini
+REFLECTION_LLM_BASE_URL=https://your-endpoint.example/v1
+REFLECTION_LLM_API_KEY=secret
+REFLECTION_LLM_MODEL=gpt-4.1-mini
+```
 
 ## Миграции
 
-Локально:
-
-```bash
-.venv/bin/python -m alembic upgrade head
-```
-
 В Docker migrations запускаются автоматически из
-`scripts/bootstrap.sh`.
+`scripts/bootstrap.sh`. Основной интерфейс работающей системы - HTTP API
+на `localhost:8000` и MCP endpoint на `localhost:9000`.
 
 ## Ingestion
 
-Команды Phase 2:
+Команды Phase 2 доступны через локальный CLI, если нужен
+операционный доступ:
 
 ```bash
 mnemos ingest questionnaire data/raw/questionnaire.md
@@ -170,6 +177,13 @@ mnemos reflect build --domain self
 mnemos reflect build --theme motivation
 ```
 
+Для локального mock OpenAI-compatible стека:
+
+```bash
+cp .env.local-mock.example .env
+docker compose -f docker-compose.yml -f docker-compose.local-mock.yml up -d --build
+```
+
 Runner:
 
 - загружает accepted `fact` items выбранного домена
@@ -178,6 +192,12 @@ Runner:
 - вызывает reflection LLM client
 - сохраняет `reflection` items и `supported_by` relations
 - индексирует reflections в Qdrant
+
+Локальный mock OpenAI-compatible API публикуется на
+`http://localhost:18090/v1`.
+
+Для product-эксплуатации используй только `docker-compose.yml` и
+реальные значения OpenAI-compatible endpoint'ов в `.env`.
 
 ## Memory Governance
 

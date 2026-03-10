@@ -1,4 +1,5 @@
 from collections import defaultdict
+import os
 
 import pytest
 from fastapi.testclient import TestClient
@@ -6,7 +7,6 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from api.main import create_app
 from core.config import Settings
 from db.base import Base
 from embeddings.mock import MockEmbedder
@@ -58,6 +58,9 @@ class FakeQdrant:
 
 @pytest.fixture
 def client():
+  os.environ.setdefault("EMBEDDING_BASE_URL", "http://example.test/v1")
+  from api.main import create_app
+
   settings = Settings(
     postgres_host="localhost",
     postgres_port=5432,
@@ -65,7 +68,7 @@ def client():
     postgres_user="postgres",
     postgres_password="postgres",
     qdrant_url="http://fake-qdrant",
-    embedding_provider="mock",
+    embedding_base_url="http://example.test/v1",
     qdrant_vector_size=8,
   )
   engine = create_engine(

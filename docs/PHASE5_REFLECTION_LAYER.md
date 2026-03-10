@@ -269,7 +269,6 @@ The implementation must support OpenAI-compatible APIs.
 Configuration variables:
 
 ```text
-REFLECTION_LLM_PROVIDER
 REFLECTION_LLM_MODEL
 REFLECTION_LLM_BASE_URL
 REFLECTION_LLM_API_KEY

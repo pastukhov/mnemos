@@ -1,14 +1,11 @@
 from core.config import Settings
 from embeddings.base import Embedder
-from embeddings.mock import MockEmbedder
 from embeddings.openai_compatible import OpenAICompatibleEmbedder
 
 
 def build_embedder(settings: Settings) -> Embedder:
-  if settings.embedding_provider == "mock":
-    return MockEmbedder(vector_size=settings.qdrant_vector_size)
   if not settings.embedding_base_url:
-    raise ValueError("EMBEDDING_BASE_URL is required for non-mock embedding providers")
+    raise ValueError("EMBEDDING_BASE_URL is required")
   return OpenAICompatibleEmbedder(
     model=settings.embedding_model,
     base_url=settings.embedding_base_url,

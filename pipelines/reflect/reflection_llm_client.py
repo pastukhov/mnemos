@@ -135,10 +135,8 @@ class OpenAICompatibleReflectionLLMClient(ReflectionLLMClient):
 
 
 def build_reflection_llm_client(settings: Settings) -> ReflectionLLMClient:
-  if settings.reflection_llm_provider == "mock":
-    return MockReflectionLLMClient()
   if not settings.reflection_llm_base_url:
-    raise ValueError("REFLECTION_LLM_BASE_URL is required for non-mock reflection LLM providers")
+    raise ValueError("REFLECTION_LLM_BASE_URL is required")
   return OpenAICompatibleReflectionLLMClient(
     model=settings.reflection_llm_model,
     base_url=settings.reflection_llm_base_url,
