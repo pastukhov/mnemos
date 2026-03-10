@@ -11,8 +11,8 @@
 
 Required checks on every pull request into `main`:
 
-- `CI / test`
-- `CI / governance`
+- `test`
+- `governance`
 
 Merge must stay blocked until all required checks pass.
 

@@ -24,8 +24,8 @@ read -r -d '' PAYLOAD <<EOF || true
   "required_status_checks": {
     "strict": true,
     "contexts": [
-      "CI / test",
-      "CI / governance"
+      "test",
+      "governance"
     ]
   },
   "enforce_admins": true,
