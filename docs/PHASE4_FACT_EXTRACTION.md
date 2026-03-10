@@ -213,7 +213,6 @@ The implementation must support OpenAI-compatible APIs.
 Configuration variables:
 
 ```text
-FACT_LLM_PROVIDER
 FACT_LLM_MODEL
 FACT_LLM_BASE_URL
 FACT_LLM_API_KEY

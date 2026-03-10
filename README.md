@@ -95,11 +95,9 @@ Required environment variables:
 - `POSTGRES_DB`
 - `POSTGRES_USER`
 - `POSTGRES_PASSWORD`
-- `EMBEDDING_PROVIDER`
 - `EMBEDDING_MODEL`
 - `EMBEDDING_BASE_URL`
 - `EMBEDDING_API_KEY`
-- `FACT_LLM_PROVIDER`
 - `FACT_LLM_MODEL`
 - `FACT_LLM_BASE_URL`
 - `FACT_LLM_API_KEY`
@@ -107,7 +105,6 @@ Required environment variables:
 - `FACT_MAX_FACTS_PER_ITEM`
 - `FACT_MIN_CHARS`
 - `FACT_MAX_CHARS`
-- `REFLECTION_LLM_PROVIDER`
 - `REFLECTION_LLM_MODEL`
 - `REFLECTION_LLM_BASE_URL`
 - `REFLECTION_LLM_API_KEY`
@@ -128,15 +125,12 @@ the local mock service from `docker-compose.local-mock.yml`.
 Example:
 
 ```bash
-EMBEDDING_PROVIDER=openai_compatible
 EMBEDDING_BASE_URL=https://your-endpoint.example/v1
 EMBEDDING_API_KEY=secret
 EMBEDDING_MODEL=text-embedding-3-small
-FACT_LLM_PROVIDER=openai_compatible
 FACT_LLM_BASE_URL=https://your-endpoint.example/v1
 FACT_LLM_API_KEY=secret
 FACT_LLM_MODEL=gpt-4.1-mini
-REFLECTION_LLM_PROVIDER=openai_compatible
 REFLECTION_LLM_BASE_URL=https://your-endpoint.example/v1
 REFLECTION_LLM_API_KEY=secret
 REFLECTION_LLM_MODEL=gpt-4.1-mini

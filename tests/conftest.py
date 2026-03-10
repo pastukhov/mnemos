@@ -65,7 +65,6 @@ def client():
     postgres_user="postgres",
     postgres_password="postgres",
     qdrant_url="http://fake-qdrant",
-    embedding_provider="openai_compatible",
     embedding_base_url="http://example.test/v1",
     qdrant_vector_size=8,
   )

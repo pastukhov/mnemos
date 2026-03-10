@@ -43,7 +43,6 @@ class Settings(BaseSettings):
   qdrant_vector_size: int = Field(default=64, validation_alias="QDRANT_VECTOR_SIZE")
   qdrant_timeout_seconds: float = Field(default=5.0, validation_alias="QDRANT_TIMEOUT_SECONDS")
 
-  embedding_provider: str = Field(default="openai_compatible", validation_alias="EMBEDDING_PROVIDER")
   embedding_model: str = Field(default="text-embedding-3-small", validation_alias="EMBEDDING_MODEL")
   embedding_base_url: str | None = Field(
     default=None,
@@ -54,7 +53,6 @@ class Settings(BaseSettings):
     default=10.0,
     validation_alias="EMBEDDING_TIMEOUT_SECONDS",
   )
-  fact_llm_provider: str = Field(default="openai_compatible", validation_alias="FACT_LLM_PROVIDER")
   fact_llm_model: str = Field(default="gpt-4.1-mini", validation_alias="FACT_LLM_MODEL")
   fact_llm_base_url: str | None = Field(default=None, validation_alias="FACT_LLM_BASE_URL")
   fact_llm_api_key: str | None = Field(default=None, validation_alias="FACT_LLM_API_KEY")
@@ -65,10 +63,6 @@ class Settings(BaseSettings):
   fact_max_facts_per_item: int = Field(default=5, validation_alias="FACT_MAX_FACTS_PER_ITEM")
   fact_min_chars: int = Field(default=10, validation_alias="FACT_MIN_CHARS")
   fact_max_chars: int = Field(default=300, validation_alias="FACT_MAX_CHARS")
-  reflection_llm_provider: str = Field(
-    default="openai_compatible",
-    validation_alias="REFLECTION_LLM_PROVIDER",
-  )
   reflection_llm_model: str = Field(
     default="gpt-4.1-mini",
     validation_alias="REFLECTION_LLM_MODEL",
