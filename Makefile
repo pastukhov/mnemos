@@ -4,11 +4,20 @@ PIP = $(VENV)/bin/pip
 PYTEST = $(VENV)/bin/pytest
 COMPOSE = docker compose -f docker/docker-compose.yml --env-file .env
 
-.PHONY: venv up down logs migrate test seed collections smoke ingest-all ingest-questionnaire ingest-notes
+.PHONY: venv up down logs migrate test seed collections smoke ingest-all ingest-questionnaire ingest-notes install-hooks validate-commit governance
 
 venv:
 	python3 -m venv $(VENV)
 	$(PIP) install -e '.[dev]'
+
+install-hooks:
+	./scripts/install_git_hooks.sh
+
+validate-commit:
+	./scripts/validate_conventional_commit.sh "$(MSG)"
+
+governance: install-hooks
+	./scripts/enforce_github_branch_protection.sh
 
 up:
 	$(COMPOSE) up --build -d

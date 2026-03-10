@@ -246,6 +246,47 @@ Live stack smoke verification:
 make smoke
 ```
 
+## Governance
+
+This repository follows trunk-based development with a single long-lived
+default branch: `main`.
+
+Rules:
+
+- create short-lived branches from the latest `origin/main`
+- open a pull request back into `main`
+- keep commit messages in Conventional Commits format
+- merge only after required CI checks pass
+- let the version workflow create SemVer tags from merged commit history
+- delete task branches after merge
+
+Local enforcement:
+
+```bash
+make install-hooks
+```
+
+Manual commit-message validation:
+
+```bash
+make validate-commit MSG="feat: add mcp governance workflow"
+```
+
+GitHub automation:
+
+- CI workflow runs tests and governance checks on PRs to `main`
+- version workflow computes the next SemVer tag on pushes to `main`
+- release workflow builds and publishes the container image to GHCR on `v*` tags
+
+Branch protection helper:
+
+```bash
+make governance
+```
+
+That script uses `gh` and repository admin permissions to enforce the
+expected branch protection on GitHub.
+
 Current coverage includes:
 
 - liveness endpoint
