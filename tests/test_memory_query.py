@@ -14,7 +14,7 @@ def test_query_memory_item(client):
     "metadata": {"source": "seed"},
   }
   first_response = client.post("/memory/items", json=first)
-  second_response = client.post("/memory/items", json=second)
+  client.post("/memory/items", json=second)
   first_id = first_response.json()["id"]
 
   response = client.post(

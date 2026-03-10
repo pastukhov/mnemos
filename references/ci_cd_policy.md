@@ -55,4 +55,5 @@ make install-hooks
 ```
 
 This installs a `commit-msg` hook that rejects non-Conventional-Commit
-messages before they enter local history.
+messages before they enter local history, plus a `pre-commit` hook that
+runs `ruff`, `mdl`, and `pytest`.
