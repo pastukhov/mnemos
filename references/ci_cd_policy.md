@@ -16,6 +16,12 @@ Required checks on every pull request into `main`:
 
 Merge must stay blocked until all required checks pass.
 
+Solo-maintainer mode:
+
+- keep pull requests enabled for auditability
+- set required approvals to `0`
+- still require all status checks to pass before merge
+
 ## Commit Policy
 
 Every commit must follow Conventional Commits:

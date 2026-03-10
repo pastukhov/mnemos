@@ -260,6 +260,9 @@ Rules:
 - let the version workflow create SemVer tags from merged commit history
 - delete task branches after merge
 
+If you are the only developer, keep the PR flow but configure branch
+protection with `0` required approvals and mandatory CI checks.
+
 Local enforcement:
 
 ```bash
