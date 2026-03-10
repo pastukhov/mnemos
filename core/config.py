@@ -21,6 +21,14 @@ class Settings(BaseSettings):
   mnemos_host: str = Field(default="0.0.0.0", validation_alias="MNEMOS_HOST")
   mnemos_port: int = Field(default=8000, validation_alias="MNEMOS_PORT")
   mnemos_log_level: str = Field(default="INFO", validation_alias="MNEMOS_LOG_LEVEL")
+  mnemos_url: str = Field(default="http://localhost:8000", validation_alias="MNEMOS_URL")
+  mnemos_timeout_seconds: float = Field(
+    default=10.0,
+    validation_alias="MNEMOS_TIMEOUT_SECONDS",
+  )
+  mcp_server_host: str = Field(default="0.0.0.0", validation_alias="MCP_SERVER_HOST")
+  mcp_server_port: int = Field(default=9000, validation_alias="MCP_SERVER_PORT")
+  mcp_server_transport: str = Field(default="stdio", validation_alias="MCP_SERVER_TRANSPORT")
 
   postgres_host: str = Field(default="localhost", validation_alias="POSTGRES_HOST")
   postgres_port: int = Field(default=5432, validation_alias="POSTGRES_PORT")

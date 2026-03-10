@@ -11,6 +11,7 @@ COPY api /app/api
 COPY core /app/core
 COPY db /app/db
 COPY embeddings /app/embeddings
+COPY mcp_server /app/mcp_server
 COPY migrations /app/migrations
 COPY pipelines /app/pipelines
 COPY scripts /app/scripts

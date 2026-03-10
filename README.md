@@ -1,6 +1,8 @@
 # Mnemos
 
 Mnemos is a production-oriented memory gateway service. PostgreSQL is the source of truth for memory items, Qdrant stores vectors for retrieval, and FastAPI exposes write/query/health/metrics endpoints. Phase 2 adds deterministic ingestion of questionnaire and notes sources into `memory_items`.
+Phase 3 adds an MCP server that exposes Mnemos to AI agents through MCP
+while continuing to use the REST API as the backend boundary.
 
 ## Architecture
 
@@ -9,6 +11,7 @@ Mnemos is a production-oriented memory gateway service. PostgreSQL is the source
 - `db/`: SQLAlchemy models, sessions, repositories
 - `vector/`: Qdrant wrapper and indexing helpers
 - `embeddings/`: mock and OpenAI-compatible embedding providers
+- `mcp_server/`: FastMCP server, REST client, and MCP tools
 - `services/`: write/query orchestration
 - `migrations/`: Alembic migration history
 - `scripts/`: bootstrap, collection init, seed data
@@ -22,6 +25,7 @@ Flow summary:
 2. The service inserts the row into PostgreSQL inside a transaction.
 3. The statement is embedded and upserted into the per-domain Qdrant collection.
 4. `POST /memory/query` embeds the query, searches Qdrant, then hydrates ranked results from PostgreSQL.
+5. MCP tools call the REST gateway and return agent-friendly tool results.
 
 ## Local Startup
 
@@ -61,6 +65,11 @@ Required environment variables:
 - `MNEMOS_HOST`
 - `MNEMOS_PORT`
 - `MNEMOS_LOG_LEVEL`
+- `MNEMOS_URL`
+- `MNEMOS_TIMEOUT_SECONDS`
+- `MCP_SERVER_HOST`
+- `MCP_SERVER_PORT`
+- `MCP_SERVER_TRANSPORT`
 - `POSTGRES_HOST`
 - `POSTGRES_PORT`
 - `POSTGRES_DB`
@@ -172,6 +181,56 @@ curl http://localhost:8000/health/live
 curl http://localhost:8000/health/ready
 curl http://localhost:8000/metrics
 ```
+
+## MCP Server
+
+Phase 3 adds a dedicated MCP server backed by the existing REST API.
+For local agent integrations, use `stdio`; it avoids fixed-port conflicts
+and allows many agent processes to run in parallel on the same machine.
+
+Local stdio mode for agent integrations:
+
+```bash
+mnemos mcp-server
+```
+
+HTTP mode for local testing:
+
+```bash
+mnemos mcp-server --transport streamable-http --host 0.0.0.0 --port 9000
+```
+
+Optional Docker HTTP service:
+
+```bash
+docker compose -f docker/docker-compose.yml --env-file .env --profile mcp-http up -d mnemos-mcp
+```
+
+That service exposes `http://localhost:9000/mcp` only when the
+`mcp-http` profile is enabled explicitly.
+
+Example Claude Desktop style configuration:
+
+```json
+{
+  "mcpServers": {
+    "mnemos": {
+      "command": "mnemos",
+      "args": ["mcp-server"]
+    }
+  }
+}
+```
+
+Exposed tools:
+
+- `search_memory`
+- `get_memory_item`
+- `add_memory_note`
+- `get_context`
+
+When `domain` is omitted in `search_memory` and `get_context`, the MCP
+server queries all Mnemos domains and aggregates results per domain.
 
 ## Testing
 

@@ -11,6 +11,7 @@ requires-python = ">=3.12"
 dependencies = [
   "alembic>=1.14.0",
   "fastapi>=0.115.0",
+  "fastmcp>=3.1.0",
   "httpx>=0.28.0",
   "prometheus-client>=0.21.0",
   "pydantic-settings>=2.7.0",
@@ -39,6 +40,8 @@ packages = [
   "db",
   "db.repositories",
   "embeddings",
+  "mcp_server",
+  "mcp_server.tools",
   "migrations",
   "pipelines",
   "pipelines.ingest",
