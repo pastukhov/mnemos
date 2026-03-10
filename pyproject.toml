@@ -46,6 +46,7 @@ packages = [
   "pipelines",
   "pipelines.extract",
   "pipelines.ingest",
+  "pipelines.reflect",
   "services",
   "vector",
 ]

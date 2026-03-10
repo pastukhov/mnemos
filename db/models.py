@@ -100,3 +100,18 @@ class FactExtractionMetric(Base):
     nullable=False,
     default=lambda: datetime.now(UTC),
   )
+
+
+class ReflectionMetric(Base):
+  __tablename__ = "reflection_metrics"
+
+  domain: Mapped[str] = mapped_column(String(64), primary_key=True)
+  runs_total: Mapped[int] = mapped_column(nullable=False, default=0)
+  reflections_created_total: Mapped[int] = mapped_column(nullable=False, default=0)
+  skipped_total: Mapped[int] = mapped_column(nullable=False, default=0)
+  errors_total: Mapped[int] = mapped_column(nullable=False, default=0)
+  updated_at: Mapped[datetime] = mapped_column(
+    DateTime(timezone=True),
+    nullable=False,
+    default=lambda: datetime.now(UTC),
+  )

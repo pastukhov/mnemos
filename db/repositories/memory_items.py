@@ -68,6 +68,28 @@ class MemoryItemRepository:
     )
     return list(self.session.execute(query).scalars())
 
+  def list_reflections_by_fingerprint(
+    self,
+    *,
+    domain: str,
+    theme: str,
+    source_fact_fingerprint: str,
+    status: str = "accepted",
+  ) -> list[MemoryItem]:
+    query = (
+      select(MemoryItem)
+      .where(
+        MemoryItem.domain == domain,
+        MemoryItem.kind == "reflection",
+        MemoryItem.status == status,
+        MemoryItem.metadata_json["source_type"].as_string() == "reflection_generation",
+        MemoryItem.metadata_json["theme"].as_string() == theme,
+        MemoryItem.metadata_json["source_fact_fingerprint"].as_string() == source_fact_fingerprint,
+      )
+      .order_by(MemoryItem.created_at.asc())
+    )
+    return list(self.session.execute(query).scalars())
+
   def list_by_ids(self, ids: Sequence[UUID]) -> list[MemoryItem]:
     if not ids:
       return []

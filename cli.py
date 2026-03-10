@@ -8,6 +8,8 @@ from mcp_server.server import run_server as run_mcp_server
 from pipelines.extract.fact_llm_client import build_fact_llm_client
 from pipelines.extract.fact_runner import FactExtractionRunner
 from pipelines.ingest.ingest_runner import IngestRunner
+from pipelines.reflect.reflection_llm_client import build_reflection_llm_client
+from pipelines.reflect.reflection_runner import ReflectionRunner
 from services.memory_service import MemoryService
 from vector.qdrant_client import MnemosQdrantClient
 
@@ -31,6 +33,12 @@ def build_parser() -> argparse.ArgumentParser:
   extract_subparsers = extract_parser.add_subparsers(dest="extract_target", required=True)
   extract_facts_parser = extract_subparsers.add_parser("facts")
   extract_facts_parser.add_argument("--domain", default="self")
+
+  reflect_parser = subparsers.add_parser("reflect")
+  reflect_subparsers = reflect_parser.add_subparsers(dest="reflect_target", required=True)
+  reflect_build_parser = reflect_subparsers.add_parser("build")
+  reflect_build_parser.add_argument("--domain", default="self")
+  reflect_build_parser.add_argument("--theme", default=None)
 
   mcp_parser = subparsers.add_parser("mcp-server")
   mcp_parser.add_argument(
@@ -108,6 +116,27 @@ def run_extract_command(args, parser, settings) -> int:
   return 0
 
 
+def run_reflect_command(args, parser, settings) -> int:
+  engine = create_engine(settings.postgres_dsn)
+  session_factory = create_session_factory(engine)
+  qdrant = MnemosQdrantClient(
+    url=settings.qdrant_url,
+    vector_size=settings.qdrant_vector_size,
+    timeout_seconds=settings.qdrant_timeout_seconds,
+  )
+  embedder = build_embedder(settings)
+  memory_service = MemoryService(session_factory, qdrant, embedder, settings)
+  llm_client = build_reflection_llm_client(settings)
+  runner = ReflectionRunner(memory_service, llm_client, settings)
+
+  if args.reflect_target != "build":
+    parser.error(f"unsupported reflect target: {args.reflect_target}")
+
+  report = runner.run(domain=args.domain, theme=args.theme)
+  print(report.render())
+  return 0
+
+
 def main() -> int:
   parser = build_parser()
   args = parser.parse_args()
@@ -119,6 +148,9 @@ def main() -> int:
 
   if args.command == "extract":
     return run_extract_command(args, parser, settings)
+
+  if args.command == "reflect":
+    return run_reflect_command(args, parser, settings)
 
   if args.command == "mcp-server":
     run_mcp_server(

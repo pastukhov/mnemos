@@ -13,6 +13,7 @@ from core.metrics import (
   PrometheusMiddleware,
   register_fact_extraction_metrics_collector,
   register_ingestion_metrics_collector,
+  register_reflection_metrics_collector,
 )
 from db.session import create_engine, create_session_factory
 from embeddings.factory import build_embedder
@@ -66,6 +67,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
   )
   register_ingestion_metrics_collector(session_factory)
   register_fact_extraction_metrics_collector(session_factory)
+  register_reflection_metrics_collector(session_factory)
 
   register_metrics(app)
   app.include_router(health_router)

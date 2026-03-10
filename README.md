@@ -5,6 +5,9 @@ Phase 3 adds an MCP server that exposes Mnemos to AI agents through MCP
 while continuing to use the REST API as the backend boundary.
 Phase 4 adds an LLM-backed fact extraction pipeline that derives `fact`
 items from accepted `raw` items and stores `derived_from` relations.
+Phase 5 adds a reflection generation pipeline that synthesizes accepted
+`fact` items into evidence-backed `reflection` items linked through
+`supported_by` relations.
 
 ## Architecture
 
@@ -91,6 +94,14 @@ Required environment variables:
 - `FACT_MAX_FACTS_PER_ITEM`
 - `FACT_MIN_CHARS`
 - `FACT_MAX_CHARS`
+- `REFLECTION_LLM_PROVIDER`
+- `REFLECTION_LLM_MODEL`
+- `REFLECTION_LLM_BASE_URL`
+- `REFLECTION_LLM_API_KEY`
+- `REFLECTION_LLM_TIMEOUT_SECONDS`
+- `REFLECTION_MAX_PER_THEME`
+- `REFLECTION_MIN_CHARS`
+- `REFLECTION_MAX_CHARS`
 - `QDRANT_VECTOR_SIZE`
 
 Default local development uses `EMBEDDING_PROVIDER=mock`. For an OpenAI-compatible endpoint, set:
@@ -164,6 +175,35 @@ FACT_LLM_PROVIDER=openai_compatible
 FACT_LLM_BASE_URL=https://your-endpoint.example/v1
 FACT_LLM_API_KEY=secret
 FACT_LLM_MODEL=gpt-4.1-mini
+```
+
+## Reflection Generation
+
+Phase 5 reflection generation commands:
+
+```bash
+mnemos reflect build
+mnemos reflect build --domain self
+mnemos reflect build --theme motivation
+```
+
+The runner:
+
+- loads accepted `fact` items for the selected domain
+- groups facts by `metadata.theme` or upstream questionnaire `metadata.topic`
+- computes a stable fingerprint per theme batch for idempotency
+- calls the configured reflection LLM client
+- stores `reflection` items plus `supported_by` relations
+- indexes reflections in Qdrant
+
+Default local development uses `REFLECTION_LLM_PROVIDER=mock`. For an
+OpenAI-compatible endpoint, set:
+
+```bash
+REFLECTION_LLM_PROVIDER=openai_compatible
+REFLECTION_LLM_BASE_URL=https://your-endpoint.example/v1
+REFLECTION_LLM_API_KEY=secret
+REFLECTION_LLM_MODEL=gpt-4.1-mini
 ```
 
 ## Seed Example
@@ -342,6 +382,7 @@ Current coverage includes:
 - fact extraction from raw items
 - duplicate extraction skipping
 - derived_from relation creation
+- reflection generation and `supported_by` relation creation
 - fact indexing after extraction
 
 ## Limitations
