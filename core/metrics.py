@@ -7,6 +7,7 @@ from prometheus_client.core import CounterMetricFamily
 from sqlalchemy.exc import ProgrammingError
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from db.repositories.fact_extraction_metrics import FactExtractionMetricRepository
 from db.repositories.ingestion_metrics import IngestionMetricRepository
 
 HTTP_REQUESTS_TOTAL = Counter(
@@ -34,6 +35,7 @@ POSTGRES_HEALTH = Gauge("mnemos_postgres_health", "Postgres health status")
 QDRANT_HEALTH = Gauge("mnemos_qdrant_health", "Qdrant health status")
 
 _ingestion_collector = None
+_fact_extraction_collector = None
 
 
 class IngestionMetricsCollector:
@@ -100,6 +102,72 @@ def register_ingestion_metrics_collector(session_factory) -> None:
     REGISTRY.register(_ingestion_collector)
     return
   _ingestion_collector.update_session_factory(session_factory)
+
+
+class FactExtractionMetricsCollector:
+  def __init__(self, session_factory) -> None:
+    self.session_factory = session_factory
+
+  def update_session_factory(self, session_factory) -> None:
+    self.session_factory = session_factory
+
+  def collect(self):
+    runs_metric = CounterMetricFamily(
+      "mnemos_fact_extraction_runs_total",
+      "Total fact extraction runs",
+      labels=["domain"],
+    )
+    facts_metric = CounterMetricFamily(
+      "mnemos_facts_created_total",
+      "Total facts created",
+      labels=["domain"],
+    )
+    errors_metric = CounterMetricFamily(
+      "mnemos_fact_extraction_errors_total",
+      "Total fact extraction errors",
+      labels=["domain"],
+    )
+
+    with self.session_factory() as session:
+      repository = FactExtractionMetricRepository(session)
+      try:
+        items = repository.list_all()
+      except ProgrammingError:
+        items = []
+      for item in items:
+        runs_metric.add_metric([item.domain], item.runs_total)
+        facts_metric.add_metric([item.domain], item.facts_created_total)
+        errors_metric.add_metric([item.domain], item.errors_total)
+
+    yield runs_metric
+    yield facts_metric
+    yield errors_metric
+
+  def describe(self):
+    yield CounterMetricFamily(
+      "mnemos_fact_extraction_runs_total",
+      "Total fact extraction runs",
+      labels=["domain"],
+    )
+    yield CounterMetricFamily(
+      "mnemos_facts_created_total",
+      "Total facts created",
+      labels=["domain"],
+    )
+    yield CounterMetricFamily(
+      "mnemos_fact_extraction_errors_total",
+      "Total fact extraction errors",
+      labels=["domain"],
+    )
+
+
+def register_fact_extraction_metrics_collector(session_factory) -> None:
+  global _fact_extraction_collector
+  if _fact_extraction_collector is None:
+    _fact_extraction_collector = FactExtractionMetricsCollector(session_factory)
+    REGISTRY.register(_fact_extraction_collector)
+    return
+  _fact_extraction_collector.update_session_factory(session_factory)
 
 
 class PrometheusMiddleware(BaseHTTPMiddleware):

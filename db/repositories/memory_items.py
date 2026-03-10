@@ -44,6 +44,30 @@ class MemoryItemRepository:
     )
     return self.session.execute(query).scalar_one_or_none()
 
+  def list_by_domain_kind(self, *, domain: str, kind: str, status: str = "accepted") -> list[MemoryItem]:
+    query = (
+      select(MemoryItem)
+      .where(
+        MemoryItem.domain == domain,
+        MemoryItem.kind == kind,
+        MemoryItem.status == status,
+      )
+      .order_by(MemoryItem.created_at.asc())
+    )
+    return list(self.session.execute(query).scalars())
+
+  def list_facts_by_source_item_id(self, *, source_item_id: str) -> list[MemoryItem]:
+    query = (
+      select(MemoryItem)
+      .where(
+        MemoryItem.kind == "fact",
+        MemoryItem.metadata_json["source_type"].as_string() == "fact_extraction",
+        MemoryItem.metadata_json["source_item_id"].as_string() == source_item_id,
+      )
+      .order_by(MemoryItem.created_at.asc())
+    )
+    return list(self.session.execute(query).scalars())
+
   def list_by_ids(self, ids: Sequence[UUID]) -> list[MemoryItem]:
     if not ids:
       return []

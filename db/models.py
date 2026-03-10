@@ -1,7 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import JSON, DateTime, Float, Index, String, Text, Uuid
+from sqlalchemy import JSON, DateTime, Float, ForeignKey, Index, String, Text, Uuid
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -46,6 +46,54 @@ class IngestionMetric(Base):
   source_type: Mapped[str] = mapped_column(String(64), primary_key=True)
   items_total: Mapped[int] = mapped_column(nullable=False, default=0)
   duplicates_total: Mapped[int] = mapped_column(nullable=False, default=0)
+  errors_total: Mapped[int] = mapped_column(nullable=False, default=0)
+  updated_at: Mapped[datetime] = mapped_column(
+    DateTime(timezone=True),
+    nullable=False,
+    default=lambda: datetime.now(UTC),
+  )
+
+
+class MemoryRelation(Base):
+  __tablename__ = "memory_relations"
+  __table_args__ = (
+    Index("idx_memory_relations_source_item_id", "source_item_id"),
+    Index("idx_memory_relations_target_item_id", "target_item_id"),
+    Index("idx_memory_relations_relation_type", "relation_type"),
+    Index(
+      "uq_memory_relations_source_target_type",
+      "source_item_id",
+      "target_item_id",
+      "relation_type",
+      unique=True,
+    ),
+  )
+
+  id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+  source_item_id: Mapped[uuid.UUID] = mapped_column(
+    Uuid,
+    ForeignKey("memory_items.id", ondelete="CASCADE"),
+    nullable=False,
+  )
+  target_item_id: Mapped[uuid.UUID] = mapped_column(
+    Uuid,
+    ForeignKey("memory_items.id", ondelete="CASCADE"),
+    nullable=False,
+  )
+  relation_type: Mapped[str] = mapped_column(String(64), nullable=False)
+  created_at: Mapped[datetime] = mapped_column(
+    DateTime(timezone=True),
+    nullable=False,
+    default=lambda: datetime.now(UTC),
+  )
+
+
+class FactExtractionMetric(Base):
+  __tablename__ = "fact_extraction_metrics"
+
+  domain: Mapped[str] = mapped_column(String(64), primary_key=True)
+  runs_total: Mapped[int] = mapped_column(nullable=False, default=0)
+  facts_created_total: Mapped[int] = mapped_column(nullable=False, default=0)
   errors_total: Mapped[int] = mapped_column(nullable=False, default=0)
   updated_at: Mapped[datetime] = mapped_column(
     DateTime(timezone=True),

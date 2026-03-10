@@ -11,6 +11,7 @@ from core.metrics import (
   MEMORY_QUERY_DURATION,
   MEMORY_QUERY_TOTAL,
   PrometheusMiddleware,
+  register_fact_extraction_metrics_collector,
   register_ingestion_metrics_collector,
 )
 from db.session import create_engine, create_session_factory
@@ -64,6 +65,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     MEMORY_QUERY_DURATION,
   )
   register_ingestion_metrics_collector(session_factory)
+  register_fact_extraction_metrics_collector(session_factory)
 
   register_metrics(app)
   app.include_router(health_router)

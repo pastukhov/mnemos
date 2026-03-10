@@ -3,6 +3,8 @@
 Mnemos is a production-oriented memory gateway service. PostgreSQL is the source of truth for memory items, Qdrant stores vectors for retrieval, and FastAPI exposes write/query/health/metrics endpoints. Phase 2 adds deterministic ingestion of questionnaire and notes sources into `memory_items`.
 Phase 3 adds an MCP server that exposes Mnemos to AI agents through MCP
 while continuing to use the REST API as the backend boundary.
+Phase 4 adds an LLM-backed fact extraction pipeline that derives `fact`
+items from accepted `raw` items and stores `derived_from` relations.
 
 ## Architecture
 
@@ -12,6 +14,7 @@ while continuing to use the REST API as the backend boundary.
 - `vector/`: Qdrant wrapper and indexing helpers
 - `embeddings/`: mock and OpenAI-compatible embedding providers
 - `mcp_server/`: FastMCP server, REST client, and MCP tools
+- `pipelines/extract/`: fact extraction schema, LLM client, and runner
 - `services/`: write/query orchestration
 - `migrations/`: Alembic migration history
 - `scripts/`: bootstrap, collection init, seed data
@@ -80,6 +83,14 @@ Required environment variables:
 - `EMBEDDING_MODEL`
 - `EMBEDDING_BASE_URL`
 - `EMBEDDING_API_KEY`
+- `FACT_LLM_PROVIDER`
+- `FACT_LLM_MODEL`
+- `FACT_LLM_BASE_URL`
+- `FACT_LLM_API_KEY`
+- `FACT_LLM_TIMEOUT_SECONDS`
+- `FACT_MAX_FACTS_PER_ITEM`
+- `FACT_MIN_CHARS`
+- `FACT_MAX_CHARS`
 - `QDRANT_VECTOR_SIZE`
 
 Default local development uses `EMBEDDING_PROVIDER=mock`. For an OpenAI-compatible endpoint, set:
@@ -127,6 +138,33 @@ Expected local dataset layout:
 - `data/raw/notes.jsonl`: optional local notes source, intentionally not committed
 
 Ingestion is idempotent. Duplicate detection uses `metadata.source_type + metadata.source_id`, backed by PostgreSQL expression indexes and a unique index guard.
+
+## Fact Extraction
+
+Phase 4 fact extraction command:
+
+```bash
+mnemos extract facts
+mnemos extract facts --domain self
+```
+
+The runner:
+
+- loads accepted `raw` items for the selected domain
+- skips raw items that already have extracted facts
+- calls the configured fact LLM client
+- stores `fact` items plus `derived_from` relations
+- indexes extracted facts in Qdrant
+
+Default local development uses `FACT_LLM_PROVIDER=mock`. For an
+OpenAI-compatible endpoint, set:
+
+```bash
+FACT_LLM_PROVIDER=openai_compatible
+FACT_LLM_BASE_URL=https://your-endpoint.example/v1
+FACT_LLM_API_KEY=secret
+FACT_LLM_MODEL=gpt-4.1-mini
+```
 
 ## Seed Example
 
@@ -301,6 +339,10 @@ Current coverage includes:
 - questionnaire yaml ingestion
 - notes ingestion
 - duplicate skipping during ingestion
+- fact extraction from raw items
+- duplicate extraction skipping
+- derived_from relation creation
+- fact indexing after extraction
 
 ## Limitations
 

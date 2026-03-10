@@ -55,6 +55,17 @@ class Settings(BaseSettings):
     default=10.0,
     validation_alias="EMBEDDING_TIMEOUT_SECONDS",
   )
+  fact_llm_provider: str = Field(default="mock", validation_alias="FACT_LLM_PROVIDER")
+  fact_llm_model: str = Field(default="mock-fact-llm", validation_alias="FACT_LLM_MODEL")
+  fact_llm_base_url: str | None = Field(default=None, validation_alias="FACT_LLM_BASE_URL")
+  fact_llm_api_key: str | None = Field(default=None, validation_alias="FACT_LLM_API_KEY")
+  fact_llm_timeout_seconds: float = Field(
+    default=20.0,
+    validation_alias="FACT_LLM_TIMEOUT_SECONDS",
+  )
+  fact_max_facts_per_item: int = Field(default=5, validation_alias="FACT_MAX_FACTS_PER_ITEM")
+  fact_min_chars: int = Field(default=10, validation_alias="FACT_MIN_CHARS")
+  fact_max_chars: int = Field(default=300, validation_alias="FACT_MAX_CHARS")
 
   @computed_field
   @property
