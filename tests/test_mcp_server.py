@@ -81,7 +81,7 @@ async def test_mcp_get_memory_item_handles_missing_item():
 async def test_mcp_add_memory_note_posts_expected_payload():
   def handler(request: httpx.Request) -> httpx.Response:
     assert request.method == "POST"
-    assert request.url.path == "/memory/items"
+    assert request.url.path == "/memory/candidate"
     payload = request.read().decode("utf-8")
     assert '"domain":"interaction"' in payload
     assert '"kind":"note"' in payload
@@ -94,10 +94,12 @@ async def test_mcp_add_memory_note_posts_expected_payload():
         "kind": "note",
         "statement": "Remember the user likes observability.",
         "confidence": None,
-        "status": "accepted",
+        "agent_id": "mcp_server",
+        "evidence": None,
+        "status": "pending",
         "metadata": {"source_type": "mcp", "source_id": "add_memory_note"},
         "created_at": "2026-03-10T10:00:00Z",
-        "updated_at": "2026-03-10T10:00:00Z",
+        "reviewed_at": None,
       },
     )
 
@@ -112,6 +114,51 @@ async def test_mcp_add_memory_note_posts_expected_payload():
 
   assert result.structured_content["domain"] == "interaction"
   assert result.structured_content["kind"] == "note"
+  assert result.structured_content["status"] == "pending"
+
+
+@pytest.mark.asyncio
+async def test_mcp_propose_memory_item_posts_candidate_payload():
+  def handler(request: httpx.Request) -> httpx.Response:
+    assert request.method == "POST"
+    assert request.url.path == "/memory/candidate"
+    payload = request.read().decode("utf-8")
+    assert '"domain":"self"' in payload
+    assert '"kind":"fact"' in payload
+    assert '"statement":"User prefers observable architectures."' in payload
+    return httpx.Response(
+      201,
+      json={
+        "id": "48b76e6b-fd5f-4ed9-ab06-d9de9f3e05c4",
+        "domain": "self",
+        "kind": "fact",
+        "statement": "User prefers observable architectures.",
+        "confidence": 0.8,
+        "agent_id": "mcp_server",
+        "evidence": None,
+        "status": "pending",
+        "metadata": {"source_type": "mcp", "source_id": "propose_memory_item"},
+        "created_at": "2026-03-10T10:00:00Z",
+        "reviewed_at": None,
+      },
+    )
+
+  server = build_mcp_server(
+    settings=Settings(),
+    client=build_rest_client(handler),
+  )
+  result = await server.call_tool(
+    "propose_memory_item",
+    {
+      "domain": "self",
+      "kind": "fact",
+      "statement": "User prefers observable architectures.",
+      "confidence": 0.8,
+    },
+  )
+
+  assert result.structured_content["kind"] == "fact"
+  assert result.structured_content["status"] == "pending"
 
 
 @pytest.mark.asyncio

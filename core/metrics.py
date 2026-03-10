@@ -7,6 +7,7 @@ from prometheus_client.core import CounterMetricFamily
 from sqlalchemy.exc import ProgrammingError
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from db.repositories.candidate_metrics import CandidateMetricRepository
 from db.repositories.fact_extraction_metrics import FactExtractionMetricRepository
 from db.repositories.ingestion_metrics import IngestionMetricRepository
 from db.repositories.reflection_metrics import ReflectionMetricRepository
@@ -38,6 +39,7 @@ QDRANT_HEALTH = Gauge("mnemos_qdrant_health", "Qdrant health status")
 _ingestion_collector = None
 _fact_extraction_collector = None
 _reflection_collector = None
+_candidate_collector = None
 
 
 class IngestionMetricsCollector:
@@ -248,6 +250,84 @@ def register_reflection_metrics_collector(session_factory) -> None:
     REGISTRY.register(_reflection_collector)
     return
   _reflection_collector.update_session_factory(session_factory)
+
+
+class CandidateMetricsCollector:
+  def __init__(self, session_factory) -> None:
+    self.session_factory = session_factory
+
+  def update_session_factory(self, session_factory) -> None:
+    self.session_factory = session_factory
+
+  def collect(self):
+    created_metric = CounterMetricFamily(
+      "mnemos_candidates_created_total",
+      "Total candidates created",
+      labels=["domain"],
+    )
+    accepted_metric = CounterMetricFamily(
+      "mnemos_candidates_accepted_total",
+      "Total candidates accepted",
+      labels=["domain"],
+    )
+    rejected_metric = CounterMetricFamily(
+      "mnemos_candidates_rejected_total",
+      "Total candidates rejected",
+      labels=["domain"],
+    )
+    failures_metric = CounterMetricFamily(
+      "mnemos_candidate_validation_failures_total",
+      "Total candidate validation failures",
+      labels=["domain"],
+    )
+
+    with self.session_factory() as session:
+      repository = CandidateMetricRepository(session)
+      try:
+        items = repository.list_all()
+      except ProgrammingError:
+        items = []
+      for item in items:
+        created_metric.add_metric([item.domain], item.created_total)
+        accepted_metric.add_metric([item.domain], item.accepted_total)
+        rejected_metric.add_metric([item.domain], item.rejected_total)
+        failures_metric.add_metric([item.domain], item.validation_failures_total)
+
+    yield created_metric
+    yield accepted_metric
+    yield rejected_metric
+    yield failures_metric
+
+  def describe(self):
+    yield CounterMetricFamily(
+      "mnemos_candidates_created_total",
+      "Total candidates created",
+      labels=["domain"],
+    )
+    yield CounterMetricFamily(
+      "mnemos_candidates_accepted_total",
+      "Total candidates accepted",
+      labels=["domain"],
+    )
+    yield CounterMetricFamily(
+      "mnemos_candidates_rejected_total",
+      "Total candidates rejected",
+      labels=["domain"],
+    )
+    yield CounterMetricFamily(
+      "mnemos_candidate_validation_failures_total",
+      "Total candidate validation failures",
+      labels=["domain"],
+    )
+
+
+def register_candidate_metrics_collector(session_factory) -> None:
+  global _candidate_collector
+  if _candidate_collector is None:
+    _candidate_collector = CandidateMetricsCollector(session_factory)
+    REGISTRY.register(_candidate_collector)
+    return
+  _candidate_collector.update_session_factory(session_factory)
 
 
 class PrometheusMiddleware(BaseHTTPMiddleware):

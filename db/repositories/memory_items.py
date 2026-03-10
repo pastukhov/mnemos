@@ -56,6 +56,17 @@ class MemoryItemRepository:
     )
     return list(self.session.execute(query).scalars())
 
+  def list_by_domain(self, *, domain: str, status: str = "accepted") -> list[MemoryItem]:
+    query = (
+      select(MemoryItem)
+      .where(
+        MemoryItem.domain == domain,
+        MemoryItem.status == status,
+      )
+      .order_by(MemoryItem.created_at.asc())
+    )
+    return list(self.session.execute(query).scalars())
+
   def list_facts_by_source_item_id(self, *, source_item_id: str) -> list[MemoryItem]:
     query = (
       select(MemoryItem)

@@ -12,6 +12,8 @@ items from accepted `raw` items and stores `derived_from` relations.
 Phase 5 adds a reflection generation pipeline that synthesizes accepted
 `fact` items into evidence-backed `reflection` items linked through
 `supported_by` relations.
+Phase 6 adds candidate-based memory governance so agent-generated memory
+is proposed, validated, and only then merged into accepted memory.
 
 ## Architecture
 
@@ -22,6 +24,7 @@ Phase 5 adds a reflection generation pipeline that synthesizes accepted
 - `embeddings/`: mock and OpenAI-compatible embedding providers
 - `mcp_server/`: FastMCP server, REST client, and MCP tools
 - `pipelines/extract/`: fact extraction schema, LLM client, and runner
+- `pipelines/governance/`: candidate validation and merge pipeline
 - `services/`: write/query orchestration
 - `migrations/`: Alembic migration history
 - `scripts/`: bootstrap, collection init, seed data
@@ -229,6 +232,46 @@ REFLECTION_LLM_API_KEY=secret
 REFLECTION_LLM_MODEL=gpt-4.1-mini
 ```
 
+## Memory Governance
+
+Phase 6 candidate governance endpoints:
+
+```bash
+curl -X POST http://localhost:8000/memory/candidate \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "domain": "self",
+    "kind": "fact",
+    "statement": "User prefers observable architectures.",
+    "confidence": 0.78,
+    "agent_id": "codex_cli",
+    "evidence": {"source_fact_ids": ["<fact-uuid-1>", "<fact-uuid-2>"]}
+  }'
+
+curl "http://localhost:8000/memory/candidates?status=pending"
+curl -X POST http://localhost:8000/memory/candidate/<candidate-uuid>/accept
+curl -X POST http://localhost:8000/memory/candidate/<candidate-uuid>/reject \
+  -H 'Content-Type: application/json' \
+  -d '{"reason": "manual review"}'
+```
+
+CLI commands:
+
+```bash
+mnemos candidates list
+mnemos candidates list --status pending
+mnemos candidates accept <candidate-uuid>
+mnemos candidates reject <candidate-uuid> --reason "manual review"
+```
+
+The governance runner:
+
+- stores agent proposals in `memory_candidates`
+- validates duplicate, evidence, and basic contradiction cases on accept
+- merges valid candidates into `memory_items`
+- creates `supported_by` relations from accepted items to evidence facts
+- keeps rejected candidates for audit history
+
 ## Seed Example
 
 Initialize collections and insert demo records from the Phase 1 seed script:
@@ -350,10 +393,15 @@ Exposed tools:
 - `search_memory`
 - `get_memory_item`
 - `add_memory_note`
+- `propose_memory_item`
 - `get_context`
 
 When `domain` is omitted in `search_memory` and `get_context`, the MCP
 server queries all Mnemos domains and aggregates results per domain.
+
+Under Phase 6 governance, `add_memory_note` and `propose_memory_item`
+create candidate memory through `/memory/candidate`; MCP tools no longer
+write directly into accepted memory.
 
 ## Testing
 
@@ -428,6 +476,7 @@ Current coverage includes:
 - duplicate extraction skipping
 - derived_from relation creation
 - reflection generation and `supported_by` relation creation
+- candidate creation, validation, acceptance, and rejection flows
 - fact indexing after extraction
 
 ## Limitations

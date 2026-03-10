@@ -2,7 +2,14 @@ from __future__ import annotations
 
 import httpx
 
-from api.schemas import MemoryCreateRequest, MemoryItemResponse, MemoryQueryRequest, MemoryQueryResponse
+from api.schemas import (
+  CandidateDecisionResponse,
+  MemoryCandidateCreateRequest,
+  MemoryCandidateResponse,
+  MemoryItemResponse,
+  MemoryQueryRequest,
+  MemoryQueryResponse,
+)
 from core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -51,15 +58,51 @@ class MnemosRestClient:
       return None
     return MemoryItemResponse.model_validate(response.json())
 
-  def add_memory_note(self, *, text: str) -> MemoryItemResponse:
-    payload = MemoryCreateRequest(
+  def add_memory_note(self, *, text: str) -> MemoryCandidateResponse:
+    payload = MemoryCandidateCreateRequest(
       domain="interaction",
       kind="note",
       statement=text,
+      agent_id="mcp_server",
       metadata={"source_type": "mcp", "source_id": "add_memory_note"},
     )
-    response = self._request("POST", "/memory/items", json=payload.model_dump())
-    return MemoryItemResponse.model_validate(response.json())
+    response = self._request("POST", "/memory/candidate", json=payload.model_dump())
+    return MemoryCandidateResponse.model_validate(response.json())
+
+  def propose_memory_item(
+    self,
+    *,
+    domain: str,
+    kind: str,
+    statement: str,
+    confidence: float | None = None,
+    evidence: dict[str, object] | None = None,
+    metadata: dict[str, object] | None = None,
+    agent_id: str = "mcp_server",
+  ) -> MemoryCandidateResponse:
+    payload = MemoryCandidateCreateRequest(
+      domain=domain,
+      kind=kind,
+      statement=statement,
+      confidence=confidence,
+      agent_id=agent_id,
+      evidence=evidence,
+      metadata=metadata,
+    )
+    response = self._request("POST", "/memory/candidate", json=payload.model_dump())
+    return MemoryCandidateResponse.model_validate(response.json())
+
+  def accept_candidate(self, candidate_id: str) -> CandidateDecisionResponse:
+    response = self._request("POST", f"/memory/candidate/{candidate_id}/accept")
+    return CandidateDecisionResponse.model_validate(response.json())
+
+  def reject_candidate(self, candidate_id: str, *, reason: str) -> CandidateDecisionResponse:
+    response = self._request(
+      "POST",
+      f"/memory/candidate/{candidate_id}/reject",
+      json={"reason": reason},
+    )
+    return CandidateDecisionResponse.model_validate(response.json())
 
   def _request(
     self,

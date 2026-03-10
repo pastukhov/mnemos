@@ -4,7 +4,7 @@ PIP = $(VENV)/bin/pip
 PYTEST = $(VENV)/bin/pytest
 COMPOSE = docker compose -f docker/docker-compose.yml --env-file .env
 
-.PHONY: venv up down logs migrate test seed collections smoke ingest-all ingest-questionnaire ingest-notes extract-facts reflect-build install-hooks validate-commit governance
+.PHONY: venv up down logs migrate test seed collections smoke ingest-all ingest-questionnaire ingest-notes extract-facts reflect-build candidates-list install-hooks validate-commit governance
 
 venv:
 	python3 -m venv $(VENV)
@@ -66,3 +66,6 @@ extract-facts:
 
 reflect-build:
 	$(VENV)/bin/mnemos reflect build --domain self
+
+candidates-list:
+	$(VENV)/bin/mnemos candidates list --status pending

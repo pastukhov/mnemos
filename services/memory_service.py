@@ -67,6 +67,11 @@ class MemoryService:
       repository = MemoryItemRepository(session)
       return repository.list_by_domain_kind(domain=domain, kind=kind)
 
+  def list_items_by_domain(self, domain: str):
+    with self.session_factory() as session:
+      repository = MemoryItemRepository(session)
+      return repository.list_by_domain(domain=domain)
+
   def list_facts_by_source_item_id(self, *, source_item_id: str):
     with self.session_factory() as session:
       repository = MemoryItemRepository(session)

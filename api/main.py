@@ -11,12 +11,14 @@ from core.metrics import (
   MEMORY_QUERY_DURATION,
   MEMORY_QUERY_TOTAL,
   PrometheusMiddleware,
+  register_candidate_metrics_collector,
   register_fact_extraction_metrics_collector,
   register_ingestion_metrics_collector,
   register_reflection_metrics_collector,
 )
 from db.session import create_engine, create_session_factory
 from embeddings.factory import build_embedder
+from services.memory_governance_service import MemoryGovernanceService
 from services.memory_service import MemoryService
 from services.retrieval_service import RetrievalService
 from vector.qdrant_client import MnemosQdrantClient
@@ -57,6 +59,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
   app.state.qdrant = qdrant
   app.state.embedder = embedder
   app.state.memory_service = MemoryService(session_factory, qdrant, embedder, settings)
+  app.state.governance_service = MemoryGovernanceService(session_factory)
   app.state.retrieval_service = RetrievalService(
     session_factory,
     qdrant,
@@ -68,6 +71,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
   register_ingestion_metrics_collector(session_factory)
   register_fact_extraction_metrics_collector(session_factory)
   register_reflection_metrics_collector(session_factory)
+  register_candidate_metrics_collector(session_factory)
 
   register_metrics(app)
   app.include_router(health_router)
