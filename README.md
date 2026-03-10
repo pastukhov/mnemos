@@ -1,5 +1,7 @@
 # Mnemos
 
+[Русская версия](README_ru.md)
+
 Mnemos is a production-oriented memory gateway service. PostgreSQL is
 the source of truth for memory items, Qdrant stores vectors for
 retrieval, and FastAPI exposes write/query/health/metrics endpoints.
@@ -489,4 +491,4 @@ Current coverage includes:
 ## Roadmap Note
 
 Earlier roadmap notes from Phase 1 are now superseded by implemented
-Phase 2 through Phase 5 functionality in this repository.
+Phase 2 through Phase 6 functionality in this repository.
