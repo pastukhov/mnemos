@@ -113,10 +113,10 @@ class OpenAICompatibleFactLLMClient(FactLLMClient):
 
 
 def build_fact_llm_client(settings: Settings) -> FactLLMClient:
-  if settings.fact_llm_provider == "mock":
-    return MockFactLLMClient()
+  if settings.fact_llm_provider != "openai_compatible":
+    raise ValueError("FACT_LLM_PROVIDER must be 'openai_compatible'")
   if not settings.fact_llm_base_url:
-    raise ValueError("FACT_LLM_BASE_URL is required for non-mock fact LLM providers")
+    raise ValueError("FACT_LLM_BASE_URL is required for FACT_LLM_PROVIDER=openai_compatible")
   return OpenAICompatibleFactLLMClient(
     model=settings.fact_llm_model,
     base_url=settings.fact_llm_base_url,

@@ -1,0 +1,32 @@
+services:
+  mock-openai:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+      - uvicorn
+      - mock_openai_api:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+    ports:
+      - "18090:8080"
+    restart: unless-stopped
+
+  mnemos:
+    depends_on:
+      mock-openai:
+        condition: service_started
+    environment:
+      EMBEDDING_PROVIDER: openai_compatible
+      EMBEDDING_BASE_URL: http://mock-openai:8080/v1
+      FACT_LLM_PROVIDER: openai_compatible
+      FACT_LLM_BASE_URL: http://mock-openai:8080/v1
+      REFLECTION_LLM_PROVIDER: openai_compatible
+      REFLECTION_LLM_BASE_URL: http://mock-openai:8080/v1
+
+  mnemos-mcp:
+    depends_on:
+      mock-openai:
+        condition: service_started

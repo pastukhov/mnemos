@@ -239,7 +239,8 @@ Do not crash MCP server.
 MCP server must read configuration:
 
 ```text
-MNEMOS_URL
+MNEMOS_HOST
+MNEMOS_PORT
 ```
 
 Example:
@@ -283,7 +284,8 @@ mnemos-mcp:
   build: .
   command: python -m mnemos.mcp_server.server
   environment:
-    MNEMOS_URL: http://mnemos:8080
+    MNEMOS_HOST: mnemos
+    MNEMOS_PORT: 8080
   depends_on:
     - mnemos
 ```

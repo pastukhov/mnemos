@@ -21,7 +21,6 @@ class Settings(BaseSettings):
   mnemos_host: str = Field(default="0.0.0.0", validation_alias="MNEMOS_HOST")
   mnemos_port: int = Field(default=8000, validation_alias="MNEMOS_PORT")
   mnemos_log_level: str = Field(default="INFO", validation_alias="MNEMOS_LOG_LEVEL")
-  mnemos_url: str = Field(default="http://localhost:8000", validation_alias="MNEMOS_URL")
   mnemos_timeout_seconds: float = Field(
     default=10.0,
     validation_alias="MNEMOS_TIMEOUT_SECONDS",
@@ -44,8 +43,8 @@ class Settings(BaseSettings):
   qdrant_vector_size: int = Field(default=64, validation_alias="QDRANT_VECTOR_SIZE")
   qdrant_timeout_seconds: float = Field(default=5.0, validation_alias="QDRANT_TIMEOUT_SECONDS")
 
-  embedding_provider: str = Field(default="mock", validation_alias="EMBEDDING_PROVIDER")
-  embedding_model: str = Field(default="mock-embedding", validation_alias="EMBEDDING_MODEL")
+  embedding_provider: str = Field(default="openai_compatible", validation_alias="EMBEDDING_PROVIDER")
+  embedding_model: str = Field(default="text-embedding-3-small", validation_alias="EMBEDDING_MODEL")
   embedding_base_url: str | None = Field(
     default=None,
     validation_alias="EMBEDDING_BASE_URL",
@@ -55,8 +54,8 @@ class Settings(BaseSettings):
     default=10.0,
     validation_alias="EMBEDDING_TIMEOUT_SECONDS",
   )
-  fact_llm_provider: str = Field(default="mock", validation_alias="FACT_LLM_PROVIDER")
-  fact_llm_model: str = Field(default="mock-fact-llm", validation_alias="FACT_LLM_MODEL")
+  fact_llm_provider: str = Field(default="openai_compatible", validation_alias="FACT_LLM_PROVIDER")
+  fact_llm_model: str = Field(default="gpt-4.1-mini", validation_alias="FACT_LLM_MODEL")
   fact_llm_base_url: str | None = Field(default=None, validation_alias="FACT_LLM_BASE_URL")
   fact_llm_api_key: str | None = Field(default=None, validation_alias="FACT_LLM_API_KEY")
   fact_llm_timeout_seconds: float = Field(
@@ -67,11 +66,11 @@ class Settings(BaseSettings):
   fact_min_chars: int = Field(default=10, validation_alias="FACT_MIN_CHARS")
   fact_max_chars: int = Field(default=300, validation_alias="FACT_MAX_CHARS")
   reflection_llm_provider: str = Field(
-    default="mock",
+    default="openai_compatible",
     validation_alias="REFLECTION_LLM_PROVIDER",
   )
   reflection_llm_model: str = Field(
-    default="mock-reflection-llm",
+    default="gpt-4.1-mini",
     validation_alias="REFLECTION_LLM_MODEL",
   )
   reflection_llm_base_url: str | None = Field(
@@ -92,6 +91,14 @@ class Settings(BaseSettings):
   )
   reflection_min_chars: int = Field(default=20, validation_alias="REFLECTION_MIN_CHARS")
   reflection_max_chars: int = Field(default=300, validation_alias="REFLECTION_MAX_CHARS")
+
+  @computed_field
+  @property
+  def mnemos_url(self) -> str:
+    host = self.mnemos_host
+    if host in {"0.0.0.0", "::"}:
+      host = "localhost"
+    return f"http://{host}:{self.mnemos_port}"
 
   @computed_field
   @property

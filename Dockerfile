@@ -7,6 +7,7 @@ WORKDIR /app
 
 COPY pyproject.toml README.md alembic.ini /app/
 COPY cli.py /app/cli.py
+COPY mock_openai_api.py /app/mock_openai_api.py
 COPY api /app/api
 COPY core /app/core
 COPY db /app/db
