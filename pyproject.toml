@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mnemos"
+version = "0.1.0"
+description = "Mnemos Phase 1 memory gateway service"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "alembic>=1.14.0",
+  "fastapi>=0.115.0",
+  "httpx>=0.28.0",
+  "prometheus-client>=0.21.0",
+  "pydantic-settings>=2.7.0",
+  "psycopg[binary]>=3.2.0",
+  "qdrant-client>=1.12.0",
+  "sqlalchemy>=2.0.36",
+  "uvicorn[standard]>=0.32.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3.0",
+  "pytest-asyncio>=0.24.0",
+]
+
+[tool.setuptools]
+packages = [
+  "api",
+  "api.routes",
+  "core",
+  "db",
+  "db.repositories",
+  "embeddings",
+  "migrations",
+  "services",
+  "vector",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = [
+  "ignore::DeprecationWarning",
+]
