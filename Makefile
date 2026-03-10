@@ -4,7 +4,7 @@ PIP = $(VENV)/bin/pip
 PYTEST = $(VENV)/bin/pytest
 COMPOSE = docker compose -f docker/docker-compose.yml --env-file .env
 
-.PHONY: venv up down logs migrate test seed collections smoke
+.PHONY: venv up down logs migrate test seed collections smoke ingest-all ingest-questionnaire ingest-notes
 
 venv:
 	python3 -m venv $(VENV)
@@ -42,3 +42,12 @@ seed:
 
 collections:
 	$(PYTHON) scripts/create_qdrant_collections.py
+
+ingest-all:
+	$(VENV)/bin/mnemos ingest all
+
+ingest-questionnaire:
+	$(VENV)/bin/mnemos ingest questionnaire data/raw/questionnaire.md
+
+ingest-notes:
+	$(VENV)/bin/mnemos ingest notes data/raw/notes.jsonl

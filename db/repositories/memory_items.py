@@ -37,6 +37,13 @@ class MemoryItemRepository:
   def get(self, item_id: UUID) -> MemoryItem | None:
     return self.session.get(MemoryItem, item_id)
 
+  def get_by_source_ref(self, *, source_type: str, source_id: str) -> MemoryItem | None:
+    query = select(MemoryItem).where(
+      MemoryItem.metadata_json["source_type"].as_string() == source_type,
+      MemoryItem.metadata_json["source_id"].as_string() == source_id,
+    )
+    return self.session.execute(query).scalar_one_or_none()
+
   def list_by_ids(self, ids: Sequence[UUID]) -> list[MemoryItem]:
     if not ids:
       return []

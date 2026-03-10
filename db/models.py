@@ -38,3 +38,17 @@ class MemoryItem(Base):
     nullable=False,
     default=lambda: datetime.now(UTC),
   )
+
+
+class IngestionMetric(Base):
+  __tablename__ = "ingestion_metrics"
+
+  source_type: Mapped[str] = mapped_column(String(64), primary_key=True)
+  items_total: Mapped[int] = mapped_column(nullable=False, default=0)
+  duplicates_total: Mapped[int] = mapped_column(nullable=False, default=0)
+  errors_total: Mapped[int] = mapped_column(nullable=False, default=0)
+  updated_at: Mapped[datetime] = mapped_column(
+    DateTime(timezone=True),
+    nullable=False,
+    default=lambda: datetime.now(UTC),
+  )

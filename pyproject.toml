@@ -15,10 +15,14 @@ dependencies = [
   "prometheus-client>=0.21.0",
   "pydantic-settings>=2.7.0",
   "psycopg[binary]>=3.2.0",
+  "PyYAML>=6.0.2",
   "qdrant-client>=1.12.0",
   "sqlalchemy>=2.0.36",
   "uvicorn[standard]>=0.32.0",
 ]
+
+[project.scripts]
+mnemos = "cli:main"
 
 [project.optional-dependencies]
 dev = [
@@ -27,6 +31,7 @@ dev = [
 ]
 
 [tool.setuptools]
+py-modules = ["cli"]
 packages = [
   "api",
   "api.routes",
@@ -35,6 +40,8 @@ packages = [
   "db.repositories",
   "embeddings",
   "migrations",
+  "pipelines",
+  "pipelines.ingest",
   "services",
   "vector",
 ]

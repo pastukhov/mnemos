@@ -1,6 +1,6 @@
-# Mnemos Phase 1
+# Mnemos
 
-Mnemos Phase 1 is a production-oriented memory gateway service. PostgreSQL is the source of truth for memory items, Qdrant stores vectors for retrieval, and FastAPI exposes write/query/health endpoints.
+Mnemos is a production-oriented memory gateway service. PostgreSQL is the source of truth for memory items, Qdrant stores vectors for retrieval, and FastAPI exposes write/query/health/metrics endpoints. Phase 2 adds deterministic ingestion of questionnaire and notes sources into `memory_items`.
 
 ## Architecture
 
@@ -12,6 +12,8 @@ Mnemos Phase 1 is a production-oriented memory gateway service. PostgreSQL is th
 - `services/`: write/query orchestration
 - `migrations/`: Alembic migration history
 - `scripts/`: bootstrap, collection init, seed data
+- `pipelines/ingest/`: questionnaire and notes ingestion pipelines
+- `data/raw/`: local raw inputs for ingestion, intentionally gitignored
 - `docker/`: Dockerfile and Compose stack
 
 Flow summary:
@@ -42,6 +44,8 @@ make up
 ```
 
 The API will be available at `http://localhost:8000`.
+
+The checked-in `.env.example` is host-friendly: local CLI, Alembic, and tests use `localhost`, while Docker Compose overrides the `mnemos` container to talk to `postgres` and `qdrant` over the internal network.
 
 4. Run a live smoke check against the running stack:
 
@@ -88,9 +92,36 @@ Run migrations locally:
 
 Inside Docker, migrations run automatically from `scripts/bootstrap.sh` on container startup.
 
+## Ingestion
+
+Phase 2 ingestion commands:
+
+```bash
+mnemos ingest questionnaire data/raw/questionnaire.md
+mnemos ingest questionnaire data/raw/questionnaire.yaml
+mnemos ingest notes data/raw/notes.jsonl
+mnemos ingest all
+```
+
+Convenience Make targets:
+
+```bash
+make ingest-all
+make ingest-questionnaire
+make ingest-notes
+```
+
+Expected local dataset layout:
+
+- `data/raw/questionnaire.md`: user-provided questionnaire source, intentionally not committed
+- `data/raw/questionnaire.yaml`: optional user-provided YAML questionnaire source, intentionally not committed
+- `data/raw/notes.jsonl`: optional local notes source, intentionally not committed
+
+Ingestion is idempotent. Duplicate detection uses `metadata.source_type + metadata.source_id`, backed by PostgreSQL expression indexes and a unique index guard.
+
 ## Seed Example
 
-Initialize collections and insert demo records:
+Initialize collections and insert demo records from the Phase 1 seed script:
 
 ```bash
 .venv/bin/python scripts/create_qdrant_collections.py
@@ -163,15 +194,18 @@ Current coverage includes:
 - memory creation
 - memory query
 - hydration from PostgreSQL after vector lookup
+- questionnaire markdown ingestion
+- questionnaire yaml ingestion
+- notes ingestion
+- duplicate skipping during ingestion
 
 ## Limitations
 
 - No authentication yet
-- No ingestion pipeline beyond direct API writes
 - Mock embeddings are intended for local dev and tests only
 - Query filtering by kind happens after hydration from PostgreSQL
 - No tracing, background jobs, or retry queue for failed indexing
 
 ## Roadmap Note
 
-Phase 1 intentionally stops at storage, vector indexing, retrieval API, migrations, and operability. Later phases such as questionnaire ingestion, fact extraction, reflections, agent roles, and candidate writes are intentionally out of scope here.
+Phase 3 still remains out of scope here: fact extraction, reflections, agent roles, and candidate write pipelines.

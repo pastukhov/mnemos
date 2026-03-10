@@ -5,3 +5,5 @@ __pycache__/
 *.pyc
 dist/
 build/
+docs/50_questions.md
+data/raw/
