@@ -2,7 +2,7 @@ VENV ?= .venv
 PYTHON = $(VENV)/bin/python
 PIP = $(VENV)/bin/pip
 PYTEST = $(VENV)/bin/pytest
-COMPOSE = docker compose -f docker/docker-compose.yml --env-file .env
+COMPOSE = docker compose --env-file .env
 
 .PHONY: venv up down logs migrate test seed collections smoke ingest-all ingest-questionnaire ingest-notes extract-facts reflect-build candidates-list install-hooks validate-commit governance
 

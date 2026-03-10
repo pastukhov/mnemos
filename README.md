@@ -32,7 +32,7 @@ is proposed, validated, and only then merged into accepted memory.
 - `scripts/`: bootstrap, collection init, seed data
 - `pipelines/ingest/`: questionnaire and notes ingestion pipelines
 - `data/raw/`: local raw inputs for ingestion, intentionally gitignored
-- `docker/`: Dockerfile and Compose stack
+- `Dockerfile`, `docker-compose.yml`: container image and local stack
 
 Flow summary:
 
@@ -68,7 +68,7 @@ make install-hooks
 1. Start the stack:
 
 ```bash
-make up
+docker compose up -d --build
 ```
 
 The API will be available at `http://localhost:8000`.
@@ -367,15 +367,13 @@ HTTP mode for local testing:
 mnemos mcp-server --transport streamable-http --host 0.0.0.0 --port 9000
 ```
 
-Optional Docker HTTP service:
+Default Docker MCP service:
 
 ```bash
-docker compose -f docker/docker-compose.yml --env-file .env \
-  --profile mcp-http up -d mnemos-mcp
+docker compose up -d
 ```
 
-That service exposes `http://localhost:9000/mcp` only when the
-`mcp-http` profile is enabled explicitly.
+That stack exposes `http://localhost:9000/mcp` by default.
 
 Example Claude Desktop style configuration:
 

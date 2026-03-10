@@ -23,5 +23,6 @@ RUN pip install --no-cache-dir -e .
 RUN chmod +x /app/scripts/bootstrap.sh
 
 EXPOSE 8000
+EXPOSE 9000
 
 CMD ["/app/scripts/bootstrap.sh"]
