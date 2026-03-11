@@ -2,7 +2,7 @@
 layout: default
 title: Установка
 permalink: /install/
-lead: Пошаговая инструкция
+lead: Пошаговая инструкция — работает на любой платформе с Docker
 ---
 
 # Установка
@@ -24,7 +24,7 @@ lead: Пошаговая инструкция
 
 Если Docker ещё не установлен:
 
-- для Windows обычно удобнее Docker Desktop
+- для Windows и macOS удобно Docker Desktop
 - для Linux подойдёт Docker Engine + Docker Compose
 
 ## Шаг 1. Запустите Docker
@@ -34,6 +34,9 @@ lead: Пошаговая инструкция
 
 > **Важно**: пока Docker не запущен, Mnemos не
 > стартует.
+
+Эта инструкция работает для любой платформы, где доступен Docker
+Compose.
 
 ## Шаг 2. Откройте командную строку
 
