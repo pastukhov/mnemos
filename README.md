@@ -125,15 +125,15 @@ the local mock service from `docker-compose.local-mock.yml`.
 Example:
 
 ```bash
-EMBEDDING_BASE_URL=https://your-endpoint.example/v1
+EMBEDDING_BASE_URL=https://openrouter.ai/api/v1
 EMBEDDING_API_KEY=secret
-EMBEDDING_MODEL=text-embedding-3-small
-FACT_LLM_BASE_URL=https://your-endpoint.example/v1
+EMBEDDING_MODEL=openai/text-embedding-3-small
+FACT_LLM_BASE_URL=https://openrouter.ai/api/v1
 FACT_LLM_API_KEY=secret
-FACT_LLM_MODEL=gpt-4.1-mini
-REFLECTION_LLM_BASE_URL=https://your-endpoint.example/v1
+FACT_LLM_MODEL=openai/gpt-4.1-mini
+REFLECTION_LLM_BASE_URL=https://openrouter.ai/api/v1
 REFLECTION_LLM_API_KEY=secret
-REFLECTION_LLM_MODEL=gpt-4.1-mini
+REFLECTION_LLM_MODEL=openai/gpt-4.1-mini
 ```
 
 ## Migrations

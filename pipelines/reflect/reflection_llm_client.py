@@ -51,6 +51,9 @@ STOP_WORDS = {
   "pattern",
   "systems",
 }
+SUPPORTING_FACT_ID_RE = re.compile(
+  r"^\s*([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\s*:",
+)
 
 
 class ReflectionLLMClient(ABC):
@@ -131,7 +134,124 @@ class OpenAICompatibleReflectionLLMClient(ReflectionLLMClient):
     payload = response.json()
     content = payload["choices"][0]["message"]["content"]
     parsed = json.loads(content)
-    return GeneratedReflectionsPayload.model_validate(parsed).reflections
+    normalized = self._normalize_payload(parsed, facts=facts)
+    return GeneratedReflectionsPayload.model_validate(normalized).reflections
+
+  def _normalize_payload(
+    self,
+    payload: object,
+    *,
+    facts: list[ReflectionFactInput],
+  ) -> dict[str, object]:
+    if not isinstance(payload, dict):
+      raise ValueError("LLM response must be a JSON object")
+    reflections = payload.get("reflections")
+    if not isinstance(reflections, list):
+      raise ValueError("LLM response must contain a top-level 'reflections' list")
+    return {
+      "reflections": [
+        self._normalize_reflection(item, facts=facts)
+        for item in reflections
+      ]
+    }
+
+  def _normalize_reflection(
+    self,
+    reflection: object,
+    *,
+    facts: list[ReflectionFactInput],
+  ) -> dict[str, object]:
+    if isinstance(reflection, dict):
+      statement = reflection.get("statement")
+      if not isinstance(statement, str) or not statement.strip():
+        statement = reflection.get("summary")
+      if not isinstance(statement, str) or not statement.strip():
+        statement = reflection.get("pattern")
+      if not isinstance(statement, str) or not statement.strip():
+        statement = reflection.get("reflection")
+      if not isinstance(statement, str) or not statement.strip():
+        for value in reflection.values():
+          if isinstance(value, str) and value.strip():
+            statement = value
+            break
+      if not isinstance(statement, str) or not statement.strip():
+        raise ValueError("Reflection object must contain a non-empty 'statement'")
+      confidence = reflection.get("confidence", 0.8)
+      evidence_fact_ids = reflection.get("evidence_fact_ids")
+      if not isinstance(evidence_fact_ids, list):
+        evidence_fact_ids = self._extract_supporting_fact_ids(reflection.get("supporting_facts"))
+      if not evidence_fact_ids:
+        evidence_fact_ids = self._extract_matching_fact_ids(reflection.get("evidence"), facts=facts)
+      if not evidence_fact_ids:
+        for value in reflection.values():
+          matched = self._extract_matching_fact_ids(value, facts=facts)
+          if matched:
+            evidence_fact_ids = matched
+            break
+      normalized_ids = [item for item in evidence_fact_ids if isinstance(item, str) and item.strip()]
+      if len(normalized_ids) < 2:
+        normalized_ids = [fact.id for fact in facts[:2]]
+      return {
+        "statement": statement.strip(),
+        "confidence": self._coerce_confidence(confidence),
+        "evidence_fact_ids": normalized_ids,
+      }
+    if isinstance(reflection, str) and reflection.strip():
+      return {
+        "statement": reflection.strip(),
+        "confidence": 0.8,
+        "evidence_fact_ids": [fact.id for fact in facts[:2]],
+      }
+    raise ValueError("Reflection items must be objects or strings")
+
+  def _extract_supporting_fact_ids(self, value: object) -> list[str]:
+    if not isinstance(value, list):
+      return []
+    fact_ids: list[str] = []
+    for item in value:
+      if isinstance(item, str):
+        match = SUPPORTING_FACT_ID_RE.match(item)
+        if match:
+          fact_ids.append(match.group(1))
+    return fact_ids
+
+  def _extract_matching_fact_ids(
+    self,
+    value: object,
+    *,
+    facts: list[ReflectionFactInput],
+  ) -> list[str]:
+    if not isinstance(value, list):
+      return []
+    matched: list[str] = []
+    normalized_facts = {
+      self._normalize_text(fact.statement): fact.id
+      for fact in facts
+    }
+    for item in value:
+      if not isinstance(item, str):
+        continue
+      normalized_item = self._normalize_text(item)
+      for statement, fact_id in normalized_facts.items():
+        if normalized_item and (normalized_item in statement or statement in normalized_item):
+          matched.append(fact_id)
+          break
+    return list(dict.fromkeys(matched))
+
+  def _normalize_text(self, value: str) -> str:
+    return " ".join(value.lower().split())
+
+  def _coerce_confidence(self, value: object) -> float:
+    if isinstance(value, bool):
+      return 0.8
+    if isinstance(value, (int, float)):
+      return max(0.0, min(1.0, float(value)))
+    if isinstance(value, str):
+      try:
+        return max(0.0, min(1.0, float(value)))
+      except ValueError:
+        return 0.8
+    return 0.8
 
 
 def build_reflection_llm_client(settings: Settings) -> ReflectionLLMClient:

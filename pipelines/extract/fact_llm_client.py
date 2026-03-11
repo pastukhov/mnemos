@@ -109,7 +109,65 @@ class OpenAICompatibleFactLLMClient(FactLLMClient):
     payload = response.json()
     content = payload["choices"][0]["message"]["content"]
     parsed = json.loads(content)
-    return ExtractedFactsPayload.model_validate(parsed).facts
+    normalized = self._normalize_payload(parsed, source_text=text)
+    return ExtractedFactsPayload.model_validate(normalized).facts
+
+  def _normalize_payload(self, payload: object, *, source_text: str) -> dict[str, object]:
+    if isinstance(payload, dict):
+      facts = payload.get("facts")
+      if isinstance(facts, list):
+        return {"facts": [self._normalize_fact(item, source_text=source_text) for item in facts]}
+    raise ValueError("LLM response must contain a top-level 'facts' list")
+
+  def _normalize_fact(self, fact: object, *, source_text: str) -> dict[str, object]:
+    if isinstance(fact, dict):
+      statement = None
+      for key in ("statement", "fact", "text", "claim", "content"):
+        value = fact.get(key)
+        if isinstance(value, str) and value.strip():
+          statement = value
+          break
+      if statement is None:
+        question = fact.get("question")
+        answer = fact.get("answer")
+        if isinstance(question, str) and question.strip():
+          if isinstance(answer, (str, int, float)) and str(answer).strip():
+            statement = f"{question.strip()} Answer: {str(answer).strip()}"
+          else:
+            statement = question.strip()
+      if statement is None:
+        for value in fact.values():
+          if isinstance(value, str) and value.strip():
+            statement = value
+            break
+      if not isinstance(statement, str) or not statement.strip():
+        raise ValueError("Fact object must contain a non-empty 'statement'")
+      confidence = fact.get("confidence", 0.8)
+      evidence_reference = fact.get("evidence_reference")
+      return {
+        "statement": statement.strip(),
+        "confidence": self._coerce_confidence(confidence),
+        "evidence_reference": evidence_reference if isinstance(evidence_reference, str) else source_text,
+      }
+    if isinstance(fact, str) and fact.strip():
+      return {
+        "statement": fact.strip(),
+        "confidence": 0.8,
+        "evidence_reference": source_text,
+      }
+    raise ValueError("Fact items must be objects or strings")
+
+  def _coerce_confidence(self, value: object) -> float:
+    if isinstance(value, bool):
+      return 0.8
+    if isinstance(value, (int, float)):
+      return max(0.0, min(1.0, float(value)))
+    if isinstance(value, str):
+      try:
+        return max(0.0, min(1.0, float(value)))
+      except ValueError:
+        return 0.8
+    return 0.8
 
 
 def build_fact_llm_client(settings: Settings) -> FactLLMClient:
