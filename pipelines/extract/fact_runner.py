@@ -69,6 +69,13 @@ class FactExtractionRunner:
           continue
 
         for index, fact in enumerate(valid_facts, start=1):
+          source_id = f"fact_extraction:{raw_item.id}:{index}"
+          if self.memory_service.get_item_by_source_ref(
+            source_type="fact_extraction",
+            source_id=source_id,
+          ) is not None:
+            report.skipped += 1
+            continue
           payload = MemoryCreateRequest(
             domain=raw_item.domain,
             kind="fact",
@@ -76,7 +83,7 @@ class FactExtractionRunner:
             confidence=fact.confidence,
             metadata={
               "source_type": "fact_extraction",
-              "source_id": f"fact_extraction:{raw_item.id}:{index}",
+              "source_id": source_id,
               "source_item_id": str(raw_item.id),
               "evidence_reference": fact.evidence_reference or raw_item.statement,
             },

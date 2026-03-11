@@ -14,16 +14,23 @@ class MnemosQdrantClient:
       check_compatibility=False,
     )
     self.vector_size = vector_size
+    self._known_collections: set[str] = set()
 
   def ping(self) -> None:
     self.client.get_collections()
 
   def has_collection(self, collection_name: str) -> bool:
+    if collection_name in self._known_collections:
+      return True
     try:
-      return self.client.collection_exists(collection_name)
+      exists = self.client.collection_exists(collection_name)
     except AttributeError:
       existing = {item.name for item in self.client.get_collections().collections}
+      self._known_collections.update(existing)
       return collection_name in existing
+    if exists:
+      self._known_collections.add(collection_name)
+    return exists
 
   def ensure_collection(self, collection_name: str) -> None:
     if self.has_collection(collection_name):
@@ -32,6 +39,7 @@ class MnemosQdrantClient:
       collection_name=collection_name,
       vectors_config=models.VectorParams(size=self.vector_size, distance=models.Distance.COSINE),
     )
+    self._known_collections.add(collection_name)
     logger.info("qdrant collection ensured", extra={"event": "qdrant_collection_created"})
 
   def upsert_item(

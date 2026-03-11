@@ -40,12 +40,15 @@ class Settings(BaseSettings):
   )
 
   qdrant_url: str = Field(default="http://localhost:6333", validation_alias="QDRANT_URL")
-  qdrant_vector_size: int = Field(default=64, validation_alias="QDRANT_VECTOR_SIZE")
+  qdrant_vector_size: int = Field(default=1536, validation_alias="QDRANT_VECTOR_SIZE")
   qdrant_timeout_seconds: float = Field(default=5.0, validation_alias="QDRANT_TIMEOUT_SECONDS")
 
-  embedding_model: str = Field(default="text-embedding-3-small", validation_alias="EMBEDDING_MODEL")
+  embedding_model: str = Field(
+    default="openai/text-embedding-3-small",
+    validation_alias="EMBEDDING_MODEL",
+  )
   embedding_base_url: str | None = Field(
-    default=None,
+    default="https://openrouter.ai/api/v1",
     validation_alias="EMBEDDING_BASE_URL",
   )
   embedding_api_key: str | None = Field(default=None, validation_alias="EMBEDDING_API_KEY")
@@ -53,8 +56,11 @@ class Settings(BaseSettings):
     default=10.0,
     validation_alias="EMBEDDING_TIMEOUT_SECONDS",
   )
-  fact_llm_model: str = Field(default="gpt-4.1-mini", validation_alias="FACT_LLM_MODEL")
-  fact_llm_base_url: str | None = Field(default=None, validation_alias="FACT_LLM_BASE_URL")
+  fact_llm_model: str = Field(default="openai/gpt-4.1-mini", validation_alias="FACT_LLM_MODEL")
+  fact_llm_base_url: str | None = Field(
+    default="https://openrouter.ai/api/v1",
+    validation_alias="FACT_LLM_BASE_URL",
+  )
   fact_llm_api_key: str | None = Field(default=None, validation_alias="FACT_LLM_API_KEY")
   fact_llm_timeout_seconds: float = Field(
     default=20.0,
@@ -64,11 +70,11 @@ class Settings(BaseSettings):
   fact_min_chars: int = Field(default=10, validation_alias="FACT_MIN_CHARS")
   fact_max_chars: int = Field(default=300, validation_alias="FACT_MAX_CHARS")
   reflection_llm_model: str = Field(
-    default="gpt-4.1-mini",
+    default="openai/gpt-4.1-mini",
     validation_alias="REFLECTION_LLM_MODEL",
   )
   reflection_llm_base_url: str | None = Field(
-    default=None,
+    default="https://openrouter.ai/api/v1",
     validation_alias="REFLECTION_LLM_BASE_URL",
   )
   reflection_llm_api_key: str | None = Field(
