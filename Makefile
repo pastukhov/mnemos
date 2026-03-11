@@ -4,7 +4,7 @@ PIP = $(VENV)/bin/pip
 PYTEST = $(VENV)/bin/pytest
 COMPOSE = docker compose --env-file .env
 
-.PHONY: venv up down logs migrate test seed collections smoke ingest-all ingest-questionnaire ingest-notes extract-facts reflect-build candidates-list install-hooks validate-commit governance
+.PHONY: venv up down logs migrate test seed collections smoke ingest-all ingest-questionnaire ingest-notes extract-facts reflect-build candidates-list install-hooks validate-commit governance backup restore reindex stack-backup stack-restore qdrant-backup qdrant-restore config-backup config-restore full-backup
 
 venv:
 	python3 -m venv $(VENV)
@@ -69,3 +69,33 @@ reflect-build:
 
 candidates-list:
 	$(VENV)/bin/mnemos candidates list --status pending
+
+backup:
+	./scripts/backup_postgres.sh
+
+restore:
+	./scripts/restore_postgres.sh "$(FILE)"
+
+reindex:
+	$(PYTHON) scripts/reindex_qdrant.py
+
+stack-backup:
+	./scripts/backup_stack.sh
+
+stack-restore:
+	./scripts/restore_stack.sh "$(FILE)"
+
+qdrant-backup:
+	./scripts/backup_qdrant.sh
+
+qdrant-restore:
+	./scripts/restore_qdrant.sh "$(FILE)"
+
+config-backup:
+	./scripts/backup_config.sh
+
+config-restore:
+	./scripts/restore_config.sh "$(FILE)"
+
+full-backup:
+	./scripts/backup.sh

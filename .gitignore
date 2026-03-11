@@ -8,3 +8,5 @@ build/
 *.egg-info/
 docs/50_questions.md
 data/raw/
+backups/
+_site/

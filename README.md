@@ -12,6 +12,8 @@ notes and questionnaires, extract evidence-backed facts, synthesize
 reflections, and require governance before agent-generated memory
 becomes accepted memory.
 
+Project site: `https://pastukhov.github.io/mnemos`
+
 ## Features
 
 - Store structured memory items in PostgreSQL.

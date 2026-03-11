@@ -14,6 +14,11 @@ def live() -> LivenessResponse:
   return LivenessResponse(status="ok")
 
 
+@router.get("", response_model=ReadinessResponse)
+def health(request: Request) -> ReadinessResponse:
+  return ready(request)
+
+
 @router.get("/ready", response_model=ReadinessResponse)
 def ready(request: Request) -> ReadinessResponse:
   postgres_status = "ok"

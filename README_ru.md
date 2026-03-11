@@ -12,6 +12,8 @@ Mnemos - это memory gateway для хранения, поиска и упра
 синтезировать reflections и пропускать agent-generated memory через
 governance, прежде чем она попадёт в accepted memory.
 
+Сайт проекта: `https://pastukhov.github.io/mnemos`
+
 ## Возможности
 
 - Хранение структурированных memory items в PostgreSQL.
@@ -27,6 +29,20 @@ governance, прежде чем она попадёт в accepted memory.
 - Создание agent-generated memory как candidates с review перед merge.
 - Локальный запуск через Docker Compose, Alembic migrations и небольшой
   test suite.
+
+## Пользовательская документация
+
+Пользовательская документация вынесена из `docs/` в Pages-страницы
+верхнего уровня:
+
+- `index.md` — главная страница проекта
+- `about.md` — описание проекта
+- `guide.md` — руководство пользователя
+- `install.md` — установка на macOS с Docker Desktop
+- `faq.md` — частые вопросы
+
+Папка `docs/` используется для технической документации, спецификаций и
+внутренних заметок по реализации.
 
 ## Быстрый старт
 

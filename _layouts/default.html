@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="{{ page.lang | default: site.lang | default: 'ru' }}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% if page.title %}{{ page.title }} · {% endif %}{{ site.title }}</title>
+    <meta name="description" content="{{ page.description | default: site.description }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    >
+    <link rel="stylesheet" href="{{ '/assets/site.css' | relative_url }}">
+  </head>
+  <body>
+    <div class="backdrop"></div>
+
+    <header class="site-hero">
+      <div class="hero-card hero-card--main">
+        <p class="eyebrow">Личная память для человека и ИИ</p>
+        <h1>{{ page.title | default: site.title }}</h1>
+        {% if page.lead %}
+        <p class="hero-lead">{{ page.lead }}</p>
+        {% endif %}
+      </div>
+      <aside class="hero-card hero-card--side">
+        <div class="status-row">
+          <span>Стек</span>
+          <strong>FastAPI + PostgreSQL</strong>
+        </div>
+        <div class="status-row">
+          <span>Поиск</span>
+          <strong>Qdrant semantic search</strong>
+        </div>
+        <div class="status-row">
+          <span>Интеграция</span>
+          <strong>MCP + REST API</strong>
+        </div>
+        <div class="status-row">
+          <span>Подход</span>
+          <strong>governed memory</strong>
+        </div>
+      </aside>
+    </header>
+
+    <nav class="site-nav">
+      <a class="nav-item{% if page.url == '/' %} is-active{% endif %}" href="{{ '/' | relative_url }}">Главная</a>
+      <a class="nav-item{% if page.url == '/about/' %} is-active{% endif %}" href="{{ '/about/' | relative_url }}">О проекте</a>
+      <a class="nav-item{% if page.url == '/guide/' %} is-active{% endif %}" href="{{ '/guide/' | relative_url }}">Руководство</a>
+      <a class="nav-item{% if page.url == '/install/' %} is-active{% endif %}" href="{{ '/install/' | relative_url }}">Установка</a>
+      <a class="nav-item{% if page.url == '/faq/' %} is-active{% endif %}" href="{{ '/faq/' | relative_url }}">FAQ</a>
+      <a class="nav-item" href="{{ '/README_ru.md' | relative_url }}">README</a>
+    </nav>
+
+    <main class="page-shell">
+      <article class="page-card">
+        {{ content }}
+      </article>
+    </main>
+  </body>
+</html>
