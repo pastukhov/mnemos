@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -176,3 +177,60 @@ class CandidateListQuery(BaseModel):
     if value not in ALLOWED_KINDS:
       raise ValueError(f"unsupported kind: {value}")
     return value
+
+
+class WebDomainSummary(BaseModel):
+  domain: str
+  items_total: int
+
+
+class WebOverviewResponse(BaseModel):
+  status: str
+  checks: ReadinessCheckResponse
+  domains: list[WebDomainSummary]
+  pending_candidates: int
+  features: list[str]
+
+
+class WebListItemsResponse(BaseModel):
+  items: list[MemoryItemResponse]
+
+
+class ImportPreviewRequest(BaseModel):
+  content: str = Field(min_length=1)
+  filename: str | None = None
+  domain: str = "self"
+  kind: str = "note"
+
+  @field_validator("domain")
+  @classmethod
+  def validate_domain(cls, value: str) -> str:
+    if value not in ALLOWED_DOMAINS:
+      raise ValueError(f"unsupported domain: {value}")
+    return value
+
+  @field_validator("kind")
+  @classmethod
+  def validate_kind(cls, value: str) -> str:
+    if value not in ALLOWED_KINDS:
+      raise ValueError(f"unsupported kind: {value}")
+    return value
+
+
+class ImportPreviewItem(BaseModel):
+  statement: str
+  metadata: dict[str, Any] | None = None
+
+
+class ImportPreviewResponse(BaseModel):
+  detected_format: str
+  items: list[ImportPreviewItem]
+  warnings: list[str] = Field(default_factory=list)
+  truncated: bool = False
+
+
+class ImportApplyResponse(BaseModel):
+  detected_format: str
+  created: int
+  skipped: int
+  items: list[MemoryItemResponse]

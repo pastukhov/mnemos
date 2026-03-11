@@ -1,0 +1,29 @@
+title: Mnemos
+description: Память для AI-помощников и агентских систем
+markdown: kramdown
+lang: ru
+url: https://pastukhov.github.io
+baseurl: /mnemos
+exclude:
+  - api/
+  - backups/
+  - core/
+  - data/
+  - db/
+  - docs/
+  - embeddings/
+  - mcp_server/
+  - migrations/
+  - pipelines/
+  - scripts/
+  - services/
+  - tests/
+  - vector/
+  - .github/
+  - .venv/
+  - Dockerfile
+  - Makefile
+  - alembic.ini
+  - cli.py
+  - mock_openai_api.py
+  - pyproject.toml

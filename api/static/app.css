@@ -1,0 +1,365 @@
+:root {
+  --bg: #f4efe4;
+  --surface: rgba(255, 251, 244, 0.92);
+  --surface-strong: #fffaf1;
+  --text: #1f1a17;
+  --muted: #6d6357;
+  --line: rgba(63, 44, 28, 0.14);
+  --accent: #b6502d;
+  --accent-deep: #7a3317;
+  --accent-soft: rgba(182, 80, 45, 0.12);
+  --success: #2c7a4b;
+  --danger: #a1352b;
+  --shadow: 0 20px 60px rgba(84, 46, 23, 0.12);
+  --radius: 24px;
+  color-scheme: light;
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(237, 149, 88, 0.28), transparent 28%),
+    radial-gradient(circle at top right, rgba(94, 137, 125, 0.18), transparent 24%),
+    linear-gradient(180deg, #f7f1e6 0%, #efe4d1 100%);
+}
+
+a {
+  color: var(--accent-deep);
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(133, 93, 59, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(133, 93, 59, 0.06) 1px, transparent 1px);
+  background-size: 28px 28px;
+  pointer-events: none;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.45), transparent 90%);
+}
+
+.hero,
+.nav,
+.layout {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.9fr);
+  gap: 24px;
+  padding: 40px 0 24px;
+}
+
+.hero__content,
+.status-card,
+.card {
+  background: var(--surface);
+  backdrop-filter: blur(18px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.hero__content {
+  padding: 36px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent-deep);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+h1,
+h2,
+h3 {
+  font-family: "IBM Plex Serif", Georgia, serif;
+  margin-top: 0;
+}
+
+h1 {
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  margin-bottom: 16px;
+  line-height: 0.95;
+}
+
+.hero__lead {
+  font-size: 1.08rem;
+  line-height: 1.7;
+  max-width: 60ch;
+}
+
+.hero__actions,
+.toolbar {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.status-card {
+  padding: 24px;
+  align-self: stretch;
+}
+
+.status-card__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.status-card__row:last-child {
+  border-bottom: 0;
+}
+
+.nav {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.nav__item,
+.button {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 12px 18px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+}
+
+.nav__item {
+  background: rgba(255, 250, 241, 0.74);
+  border-color: var(--line);
+}
+
+.nav__item:hover,
+.button:hover {
+  transform: translateY(-1px);
+}
+
+.nav__item.is-active,
+.button--primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+  color: #fff9f2;
+}
+
+.button--ghost {
+  background: transparent;
+  border-color: var(--line);
+  color: var(--text);
+}
+
+.layout {
+  padding-bottom: 40px;
+}
+
+.panel {
+  display: none;
+  animation: fadeUp 220ms ease;
+}
+
+.panel.is-active {
+  display: block;
+}
+
+.grid {
+  display: grid;
+  gap: 20px;
+}
+
+.grid--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.grid--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.card {
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.stack {
+  display: grid;
+  gap: 16px;
+}
+
+label {
+  display: grid;
+  gap: 8px;
+  font-weight: 600;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  border: 1px solid rgba(72, 48, 32, 0.18);
+  border-radius: 18px;
+  padding: 14px 16px;
+  font: inherit;
+  background: var(--surface-strong);
+  color: var(--text);
+}
+
+textarea {
+  resize: vertical;
+  min-height: 96px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.notice {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: var(--accent-soft);
+  border: 1px solid rgba(182, 80, 45, 0.22);
+}
+
+.result-list {
+  display: grid;
+  gap: 14px;
+}
+
+.result-card {
+  padding: 18px;
+  border-radius: 20px;
+  background: rgba(255, 250, 241, 0.82);
+  border: 1px solid var(--line);
+}
+
+.result-card__meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(44, 44, 44, 0.06);
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.pill--accent {
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+}
+
+.drop-zone {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  min-height: 140px;
+  margin-bottom: 18px;
+  border: 2px dashed rgba(182, 80, 45, 0.35);
+  border-radius: 22px;
+  background: rgba(255, 250, 241, 0.66);
+  text-align: center;
+}
+
+.drop-zone.is-dragging {
+  background: rgba(182, 80, 45, 0.14);
+  border-color: var(--accent);
+}
+
+.steps,
+.plain-list {
+  margin: 0;
+  padding-left: 20px;
+  line-height: 1.8;
+}
+
+.glossary {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.glossary div {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.glossary div:last-child {
+  border-bottom: 0;
+}
+
+.glossary dt {
+  font-weight: 700;
+}
+
+.glossary dd {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+
+.empty-state {
+  padding: 20px;
+  text-align: center;
+  color: var(--muted);
+  border: 1px dashed var(--line);
+  border-radius: 20px;
+}
+
+.actions-inline {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 900px) {
+  .hero,
+  .grid--two,
+  .grid--three {
+    grid-template-columns: 1fr;
+  }
+
+  .hero {
+    padding-top: 24px;
+  }
+
+  .hero__content,
+  .status-card,
+  .card {
+    padding: 20px;
+  }
+}

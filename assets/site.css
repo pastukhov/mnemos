@@ -1,0 +1,241 @@
+:root {
+  --bg: #f4efe4;
+  --surface: rgba(255, 251, 244, 0.92);
+  --surface-strong: #fffaf1;
+  --text: #1f1a17;
+  --muted: #6d6357;
+  --line: rgba(63, 44, 28, 0.14);
+  --accent: #b6502d;
+  --accent-deep: #7a3317;
+  --accent-soft: rgba(182, 80, 45, 0.12);
+  --shadow: 0 20px 60px rgba(84, 46, 23, 0.12);
+  --radius: 24px;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  color: var(--text);
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  background:
+    radial-gradient(circle at top left, rgba(237, 149, 88, 0.28), transparent 28%),
+    radial-gradient(circle at top right, rgba(94, 137, 125, 0.18), transparent 24%),
+    linear-gradient(180deg, #f7f1e6 0%, #efe4d1 100%);
+}
+
+a {
+  color: var(--accent-deep);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.16em;
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(133, 93, 59, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(133, 93, 59, 0.06) 1px, transparent 1px);
+  background-size: 28px 28px;
+  pointer-events: none;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.45), transparent 90%);
+}
+
+.site-hero,
+.site-nav,
+.page-shell {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+}
+
+.site-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.9fr);
+  gap: 24px;
+  padding: 40px 0 24px;
+}
+
+.hero-card,
+.page-card {
+  background: var(--surface);
+  backdrop-filter: blur(18px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.hero-card--main {
+  padding: 36px;
+}
+
+.hero-card--side {
+  padding: 24px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent-deep);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: "IBM Plex Serif", Georgia, serif;
+  margin-top: 0;
+}
+
+h1 {
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  margin-bottom: 16px;
+  line-height: 0.95;
+}
+
+.hero-lead {
+  margin: 0;
+  max-width: 58ch;
+  font-size: 1.08rem;
+  line-height: 1.7;
+}
+
+.status-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.status-row:last-child {
+  border-bottom: 0;
+}
+
+.status-row span {
+  color: var(--muted);
+}
+
+.site-nav {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.nav-item {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 12px 18px;
+  font-weight: 600;
+  color: var(--text);
+  text-decoration: none;
+  background: rgba(255, 250, 241, 0.74);
+  transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+}
+
+.nav-item:hover {
+  transform: translateY(-1px);
+}
+
+.nav-item.is-active {
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+  color: #fff9f2;
+  border-color: transparent;
+}
+
+.page-shell {
+  padding-bottom: 48px;
+}
+
+.page-card {
+  padding: 32px;
+}
+
+.page-card > h1:first-child {
+  display: none;
+}
+
+.page-card > h2 {
+  margin-top: 32px;
+  margin-bottom: 16px;
+  font-size: clamp(1.55rem, 3vw, 2.2rem);
+}
+
+.page-card > h3 {
+  margin-top: 24px;
+  margin-bottom: 10px;
+  font-size: 1.2rem;
+}
+
+.page-card p,
+.page-card li,
+.page-card dd {
+  line-height: 1.78;
+}
+
+.page-card ul,
+.page-card ol {
+  padding-left: 22px;
+}
+
+.page-card blockquote {
+  margin: 20px 0;
+  padding: 14px 16px;
+  border-left: 4px solid var(--accent);
+  border-radius: 16px;
+  background: var(--accent-soft);
+}
+
+.page-card code {
+  padding: 0.14em 0.38em;
+  border-radius: 8px;
+  background: rgba(78, 55, 39, 0.08);
+  font-size: 0.94em;
+}
+
+.page-card pre {
+  overflow-x: auto;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: rgba(255, 250, 241, 0.82);
+}
+
+.page-card pre code {
+  padding: 0;
+  background: transparent;
+}
+
+.page-card hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 28px 0;
+}
+
+.page-card strong {
+  color: var(--accent-deep);
+}
+
+@media (max-width: 900px) {
+  .site-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-card--main,
+  .hero-card--side,
+  .page-card {
+    padding: 24px;
+  }
+}
