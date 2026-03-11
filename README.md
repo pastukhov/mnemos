@@ -393,6 +393,17 @@ Under Phase 6 governance, `add_memory_note` and `propose_memory_item`
 create candidate memory through `/memory/candidate`; MCP tools no longer
 write directly into accepted memory.
 
+## Codex Skill
+
+This repository contains an installable Codex skill at
+`skills/mnemos-memory`.
+
+Install it with:
+
+```bash
+npx skills add https://github.com/pastukhov/mnemos --skill mnemos-memory
+```
+
 ## Testing
 
 Run tests with:
