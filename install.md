@@ -1,12 +1,11 @@
 ---
 layout: default
-title: Установка через Docker
+title: Установка
 permalink: /install/
-lead: Пошаговая инструкция для запуска Mnemos через Docker Compose на
-  macOS, Linux или Windows.
+lead: Пошаговая инструкция
 ---
 
-# Установка через Docker
+# Установка
 
 ## Что вы получите в конце
 
