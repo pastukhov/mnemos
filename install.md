@@ -1,12 +1,11 @@
 ---
 layout: default
-title: Установка на macOS
+title: Установка
 permalink: /install/
-lead: Пошаговая инструкция для человека с MacBook и Docker Desktop, без
-  предположения о техническом опыте.
+lead: Пошаговая инструкция — работает на любой платформе с Docker
 ---
 
-# Установка на macOS
+# Установка
 
 ## Что вы получите в конце
 
@@ -18,32 +17,34 @@ lead: Пошаговая инструкция для человека с MacBook
 
 ## Перед началом
 
-Убедитесь, что у вас есть:
-
-- MacBook с установленной macOS
-- установленный Docker Desktop
-- доступ к приложению Terminal
+- компьютер с Linux или Windows
+- Docker Desktop или Docker Engine с Compose
+- доступ к Terminal, PowerShell или другому shell
 - скачанная папка проекта `mnemos`
 
-Если Docker Desktop ещё не установлен, сначала установите его с
-официального сайта Docker.
+Если Docker ещё не установлен:
 
-## Шаг 1. Запустите Docker Desktop
+- для Windows и macOS удобно Docker Desktop
+- для Linux подойдёт Docker Engine + Docker Compose
 
-1. Откройте `Applications`.
-1. Запустите `Docker`.
-1. Дождитесь, пока Docker Desktop покажет, что он готов к работе.
+## Шаг 1. Запустите Docker
 
-> **Важно**: пока Docker Desktop полностью не запущен, Mnemos не
+Если вы используете Docker Desktop, просто запустите его и дождитесь,
+пока он станет готов к работе.
+
+> **Важно**: пока Docker не запущен, Mnemos не
 > стартует.
 
-## Шаг 2. Откройте Terminal
+Эта инструкция работает для любой платформы, где доступен Docker
+Compose.
 
-1. Нажмите `Command + Space`.
-1. Введите `Terminal`.
-1. Нажмите `Enter`.
+## Шаг 2. Откройте командную строку
 
-Откроется окно, куда можно вставлять команды.
+Подойдёт:
+
+- `Terminal` или любой shell
+- `Terminal` или shell на Linux
+- `PowerShell` или `Windows Terminal` на Windows
 
 ## Шаг 3. Перейдите в папку проекта
 
@@ -75,16 +76,10 @@ cp .env.example .env
 
 ## Шаг 5. Подготовьте локальное окружение Python
 
-Выполните:
+Для пользовательской установки этот шаг **не нужен**.
 
-```sh
-make venv
-```
-
-Что делает эта команда:
-
-- создаёт локальное окружение Python
-- устанавливает зависимости проекта
+`make venv` нужен разработчику для локального запуска CLI, тестов и
+работы с кодом вне Docker.
 
 ## Шаг 6. Запустите Mnemos
 
@@ -146,3 +141,17 @@ docker compose -f docker-compose.yml \
 - [Открыть руководство пользователя](/mnemos/guide/)
 - [Посмотреть ответы на частые вопросы](/mnemos/faq/)
 - [Открыть README](/mnemos/README_ru.md)
+
+## Если вы хотите подключить агента
+
+После запуска можно использовать MCP endpoint:
+
+```text
+http://localhost:9000/mcp
+```
+
+Или установить skill из репозитория:
+
+```sh
+npx skills add https://github.com/pastukhov/mnemos --skill mnemos-memory
+```
