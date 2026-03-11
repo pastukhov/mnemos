@@ -127,7 +127,7 @@ Governance означает контроль качества памяти. Ес
 
 Для локального запуска вам понадобится:
 
-- компьютер с macOS, Linux или Windows
+- компьютер с Linux или Windows
 - Docker Desktop или Docker Engine с Compose
 - доступ к Terminal, PowerShell или другому командному интерфейсу
 - 15-20 минут на первый запуск

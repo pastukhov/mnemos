@@ -17,16 +17,14 @@ lead: Пошаговая инструкция
 
 ## Перед началом
 
-Убедитесь, что у вас есть:
-
-- компьютер с macOS, Linux или Windows
+- компьютер с Linux или Windows
 - Docker Desktop или Docker Engine с Compose
 - доступ к Terminal, PowerShell или другому shell
 - скачанная папка проекта `mnemos`
 
 Если Docker ещё не установлен:
 
-- для macOS и Windows обычно удобнее Docker Desktop
+- для Windows обычно удобнее Docker Desktop
 - для Linux подойдёт Docker Engine + Docker Compose
 
 ## Шаг 1. Запустите Docker
@@ -41,7 +39,7 @@ lead: Пошаговая инструкция
 
 Подойдёт:
 
-- `Terminal` на macOS
+- `Terminal` или любой shell
 - `Terminal` или shell на Linux
 - `PowerShell` или `Windows Terminal` на Windows
 
