@@ -3,9 +3,14 @@ from __future__ import annotations
 from uuid import UUID
 
 from fastapi import HTTPException, status
+from pydantic import ValidationError
 from sqlalchemy.orm import sessionmaker
 
-from api.schemas import MemoryCandidateCreateRequest
+from api.schemas import (
+  MemoryCandidateCreateRequest,
+  MemoryCandidateValidateResponse,
+  MemoryCandidateValidationIssue,
+)
 from core.logging import get_logger
 from db.repositories.candidate_metrics import CandidateMetricRepository
 from db.repositories.memory_candidates import MemoryCandidateRepository
@@ -44,6 +49,51 @@ class MemoryGovernanceService:
         },
       )
       return candidate
+
+  def create_candidates(self, payloads: list[MemoryCandidateCreateRequest]) -> list:
+    with self.session_factory() as session:
+      repository = MemoryCandidateRepository(session)
+      metric_repository = CandidateMetricRepository(session)
+      candidates = []
+      for payload in payloads:
+        candidate = repository.create(
+          domain=payload.domain,
+          kind=payload.kind,
+          statement=payload.statement,
+          confidence=payload.confidence,
+          agent_id=payload.agent_id,
+          evidence=payload.evidence,
+          metadata=payload.metadata,
+        )
+        metric_repository.increment(domain=payload.domain, created=1)
+        candidates.append(candidate)
+      session.commit()
+      for candidate in candidates:
+        session.refresh(candidate)
+      logger.info(
+        "bulk candidates created",
+        extra={
+          "event": "bulk_candidates_created",
+          "count": len(candidates),
+        },
+      )
+      return candidates
+
+  def validate_candidate_payload(self, payload: dict[str, object]) -> MemoryCandidateValidateResponse:
+    try:
+      candidate = MemoryCandidateCreateRequest.model_validate(payload)
+    except ValidationError as exc:
+      return MemoryCandidateValidateResponse(
+        valid=False,
+        errors=[
+          MemoryCandidateValidationIssue(
+            loc=[str(part) for part in error["loc"]],
+            message=error["msg"],
+          )
+          for error in exc.errors()
+        ],
+      )
+    return MemoryCandidateValidateResponse(valid=True, candidate=candidate)
 
   def list_candidates(self, *, status: str | None = None, domain: str | None = None, kind: str | None = None):
     with self.session_factory() as session:

@@ -2,11 +2,21 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator, field_validator
 
-from core.config import ALLOWED_DOMAINS, ALLOWED_KINDS
-
-CANDIDATE_STATUSES = ("pending", "accepted", "rejected")
+from api.validation import (
+  ensure_agent_id,
+  ensure_allowed_domain,
+  ensure_allowed_kind,
+  ensure_candidate_statement,
+  ensure_candidate_status,
+  ensure_confidence_range,
+  ensure_memory_statement,
+  ensure_non_empty_text,
+  ensure_top_k,
+)
+from core.config import ALLOWED_KINDS
+from core.schema_info import build_schema_info
 
 
 class LivenessResponse(BaseModel):
@@ -26,23 +36,29 @@ class ReadinessResponse(BaseModel):
 class MemoryCreateRequest(BaseModel):
   domain: str
   kind: str
-  statement: str = Field(min_length=1)
+  statement: str
   confidence: float | None = None
   metadata: dict[str, object] | None = None
 
   @field_validator("domain")
   @classmethod
   def validate_domain(cls, value: str) -> str:
-    if value not in ALLOWED_DOMAINS:
-      raise ValueError(f"unsupported domain: {value}")
-    return value
+    return ensure_allowed_domain(value)
 
   @field_validator("kind")
   @classmethod
   def validate_kind(cls, value: str) -> str:
-    if value not in ALLOWED_KINDS:
-      raise ValueError(f"unsupported kind: {value}")
-    return value
+    return ensure_allowed_kind(value)
+
+  @field_validator("statement")
+  @classmethod
+  def validate_statement(cls, value: str) -> str:
+    return ensure_memory_statement(value)
+
+  @field_validator("confidence")
+  @classmethod
+  def validate_confidence(cls, value: float | None) -> float | None:
+    return ensure_confidence_range(value)
 
 
 class MemoryItemResponse(BaseModel):
@@ -60,17 +76,25 @@ class MemoryItemResponse(BaseModel):
 
 
 class MemoryQueryRequest(BaseModel):
-  query: str = Field(min_length=1)
+  query: str
   domain: str
-  top_k: int = Field(default=5, ge=1, le=50)
+  top_k: int = 5
   kinds: list[str] | None = None
 
   @field_validator("domain")
   @classmethod
   def validate_domain(cls, value: str) -> str:
-    if value not in ALLOWED_DOMAINS:
-      raise ValueError(f"unsupported domain: {value}")
-    return value
+    return ensure_allowed_domain(value)
+
+  @field_validator("query")
+  @classmethod
+  def validate_query(cls, value: str) -> str:
+    return ensure_non_empty_text(value, field_name="query")
+
+  @field_validator("top_k")
+  @classmethod
+  def validate_top_k(cls, value: int) -> int:
+    return ensure_top_k(value)
 
   @field_validator("kinds")
   @classmethod
@@ -79,7 +103,10 @@ class MemoryQueryRequest(BaseModel):
       return value
     invalid = [kind for kind in value if kind not in ALLOWED_KINDS]
     if invalid:
-      raise ValueError(f"unsupported kinds: {', '.join(invalid)}")
+      raise ValueError(
+        f"unsupported kinds: {', '.join(invalid)}. Allowed values: {', '.join(ALLOWED_KINDS)}. "
+        "Remove or replace unsupported kinds."
+      )
     return value
 
 
@@ -92,25 +119,36 @@ class MemoryQueryResponse(BaseModel):
 class MemoryCandidateCreateRequest(BaseModel):
   domain: str
   kind: str
-  statement: str = Field(min_length=10, max_length=500)
+  statement: str
   confidence: float | None = None
-  agent_id: str | None = Field(default=None, min_length=1, max_length=64)
+  agent_id: str | None = None
   evidence: dict[str, object] | None = None
   metadata: dict[str, object] | None = None
 
   @field_validator("domain")
   @classmethod
   def validate_domain(cls, value: str) -> str:
-    if value not in ALLOWED_DOMAINS:
-      raise ValueError(f"unsupported domain: {value}")
-    return value
+    return ensure_allowed_domain(value)
 
   @field_validator("kind")
   @classmethod
   def validate_kind(cls, value: str) -> str:
-    if value not in ALLOWED_KINDS:
-      raise ValueError(f"unsupported kind: {value}")
-    return value
+    return ensure_allowed_kind(value)
+
+  @field_validator("confidence")
+  @classmethod
+  def validate_confidence(cls, value: float | None) -> float | None:
+    return ensure_confidence_range(value)
+
+  @field_validator("agent_id")
+  @classmethod
+  def validate_agent_id(cls, value: str | None) -> str | None:
+    return ensure_agent_id(value)
+
+  @model_validator(mode="after")
+  def validate_statement_length(self) -> "MemoryCandidateCreateRequest":
+    self.statement = ensure_candidate_statement(self.statement, kind=self.kind)
+    return self
 
 
 class MemoryCandidateResponse(BaseModel):
@@ -136,6 +174,30 @@ class MemoryCandidateListResponse(BaseModel):
   items: list[MemoryCandidateResponse]
 
 
+class MemoryCandidateBulkCreateRequest(BaseModel):
+  items: list[MemoryCandidateCreateRequest] = Field(min_length=1, max_length=50)
+
+
+class MemoryCandidateBulkCreateResponse(BaseModel):
+  created: int
+  items: list[MemoryCandidateResponse]
+
+
+class MemoryCandidateValidationIssue(BaseModel):
+  loc: list[str]
+  message: str
+
+
+class MemoryCandidateValidateResponse(BaseModel):
+  valid: bool
+  candidate: MemoryCandidateCreateRequest | None = None
+  errors: list[MemoryCandidateValidationIssue] = Field(default_factory=list)
+
+
+class MemorySchemaInfoResponse(BaseModel):
+  schema: dict[str, Any] = Field(default_factory=build_schema_info)
+
+
 class CandidateRejectRequest(BaseModel):
   reason: str = Field(min_length=1, max_length=200)
 
@@ -154,29 +216,21 @@ class CandidateListQuery(BaseModel):
   @field_validator("status")
   @classmethod
   def validate_status(cls, value: str | None) -> str | None:
-    if value is None:
-      return value
-    if value not in CANDIDATE_STATUSES:
-      raise ValueError(f"unsupported candidate status: {value}")
-    return value
+    return ensure_candidate_status(value)
 
   @field_validator("domain")
   @classmethod
   def validate_domain(cls, value: str | None) -> str | None:
     if value is None:
       return value
-    if value not in ALLOWED_DOMAINS:
-      raise ValueError(f"unsupported domain: {value}")
-    return value
+    return ensure_allowed_domain(value)
 
   @field_validator("kind")
   @classmethod
   def validate_kind(cls, value: str | None) -> str | None:
     if value is None:
       return value
-    if value not in ALLOWED_KINDS:
-      raise ValueError(f"unsupported kind: {value}")
-    return value
+    return ensure_allowed_kind(value)
 
 
 class WebDomainSummary(BaseModel):
@@ -197,7 +251,7 @@ class WebListItemsResponse(BaseModel):
 
 
 class ImportPreviewRequest(BaseModel):
-  content: str = Field(min_length=1)
+  content: str
   filename: str | None = None
   domain: str = "self"
   kind: str = "note"
@@ -205,16 +259,17 @@ class ImportPreviewRequest(BaseModel):
   @field_validator("domain")
   @classmethod
   def validate_domain(cls, value: str) -> str:
-    if value not in ALLOWED_DOMAINS:
-      raise ValueError(f"unsupported domain: {value}")
-    return value
+    return ensure_allowed_domain(value)
 
   @field_validator("kind")
   @classmethod
   def validate_kind(cls, value: str) -> str:
-    if value not in ALLOWED_KINDS:
-      raise ValueError(f"unsupported kind: {value}")
-    return value
+    return ensure_allowed_kind(value)
+
+  @field_validator("content")
+  @classmethod
+  def validate_content(cls, value: str) -> str:
+    return ensure_non_empty_text(value, field_name="content")
 
 
 class ImportPreviewItem(BaseModel):

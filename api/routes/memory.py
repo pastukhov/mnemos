@@ -9,9 +9,12 @@ from api.schemas import (
   CandidateDecisionResponse,
   CandidateListQuery,
   CandidateRejectRequest,
+  MemoryCandidateBulkCreateRequest,
+  MemoryCandidateBulkCreateResponse,
   MemoryCandidateCreateRequest,
   MemoryCandidateListResponse,
   MemoryCandidateResponse,
+  MemoryCandidateValidateResponse,
   MemoryCreateRequest,
   MemoryItemResponse,
   MemoryQueryRequest,
@@ -58,6 +61,30 @@ def create_memory_candidate(
   service: MemoryGovernanceService = Depends(get_checked_governance_service),
 ) -> MemoryCandidateResponse:
   return MemoryCandidateResponse.model_validate(service.create_candidate(payload))
+
+
+@router.post("/candidate/validate", response_model=MemoryCandidateValidateResponse)
+def validate_memory_candidate(
+  payload: dict[str, object],
+  service: MemoryGovernanceService = Depends(get_checked_governance_service),
+) -> MemoryCandidateValidateResponse:
+  return service.validate_candidate_payload(payload)
+
+
+@router.post(
+  "/candidates/bulk",
+  response_model=MemoryCandidateBulkCreateResponse,
+  status_code=status.HTTP_201_CREATED,
+)
+def create_memory_candidates_bulk(
+  payload: MemoryCandidateBulkCreateRequest,
+  service: MemoryGovernanceService = Depends(get_checked_governance_service),
+) -> MemoryCandidateBulkCreateResponse:
+  items = service.create_candidates(payload.items)
+  return MemoryCandidateBulkCreateResponse(
+    created=len(items),
+    items=[MemoryCandidateResponse.model_validate(item) for item in items],
+  )
 
 
 @router.get("/candidates", response_model=MemoryCandidateListResponse)

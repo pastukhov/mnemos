@@ -5,6 +5,20 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ALLOWED_DOMAINS = ("self", "project", "operational", "interaction")
 ALLOWED_KINDS = ("raw", "fact", "reflection", "summary", "note", "decision", "task", "tension")
+CANDIDATE_STATUSES = ("pending", "accepted", "rejected")
+
+MEMORY_STATEMENT_MIN_LENGTH = 1
+MEMORY_CONFIDENCE_MIN = 0.0
+MEMORY_CONFIDENCE_MAX = 1.0
+
+QUERY_MIN_LENGTH = 1
+QUERY_TOP_K_MIN = 1
+QUERY_TOP_K_MAX = 50
+
+CANDIDATE_STATEMENT_MIN_LENGTH = 10
+CANDIDATE_STATEMENT_MAX_LENGTH = 500
+NOTE_STATEMENT_MAX_LENGTH = 10_000
+CANDIDATE_AGENT_ID_MAX_LENGTH = 64
 
 DOMAIN_COLLECTIONS = {
   "self": "mnemos_self",

@@ -4,8 +4,11 @@ import httpx
 
 from api.schemas import (
   CandidateDecisionResponse,
+  MemoryCandidateBulkCreateRequest,
+  MemoryCandidateBulkCreateResponse,
   MemoryCandidateCreateRequest,
   MemoryCandidateResponse,
+  MemoryCandidateValidateResponse,
   MemoryItemResponse,
   MemoryQueryRequest,
   MemoryQueryResponse,
@@ -69,6 +72,32 @@ class MnemosRestClient:
     response = self._request("POST", "/memory/candidate", json=payload.model_dump())
     return MemoryCandidateResponse.model_validate(response.json())
 
+  def validate_memory_item(
+    self,
+    *,
+    domain: str,
+    kind: str,
+    statement: str,
+    confidence: float | None = None,
+    evidence: dict[str, object] | None = None,
+    metadata: dict[str, object] | None = None,
+    agent_id: str = "mcp_server",
+  ) -> MemoryCandidateValidateResponse:
+    response = self._request(
+      "POST",
+      "/memory/candidate/validate",
+      json={
+        "domain": domain,
+        "kind": kind,
+        "statement": statement,
+        "confidence": confidence,
+        "evidence": evidence,
+        "metadata": metadata,
+        "agent_id": agent_id,
+      },
+    )
+    return MemoryCandidateValidateResponse.model_validate(response.json())
+
   def propose_memory_item(
     self,
     *,
@@ -91,6 +120,29 @@ class MnemosRestClient:
     )
     response = self._request("POST", "/memory/candidate", json=payload.model_dump())
     return MemoryCandidateResponse.model_validate(response.json())
+
+  def propose_memory_items(
+    self,
+    *,
+    items: list[dict[str, object]],
+    agent_id: str = "mcp_server",
+  ) -> MemoryCandidateBulkCreateResponse:
+    payload = MemoryCandidateBulkCreateRequest(
+      items=[
+        MemoryCandidateCreateRequest(
+          domain=str(item["domain"]),
+          kind=str(item["kind"]),
+          statement=str(item["statement"]),
+          confidence=item.get("confidence"),
+          evidence=item.get("evidence"),
+          metadata=item.get("metadata"),
+          agent_id=str(item.get("agent_id") or agent_id),
+        )
+        for item in items
+      ]
+    )
+    response = self._request("POST", "/memory/candidates/bulk", json=payload.model_dump())
+    return MemoryCandidateBulkCreateResponse.model_validate(response.json())
 
   def accept_candidate(self, candidate_id: str) -> CandidateDecisionResponse:
     response = self._request("POST", f"/memory/candidate/{candidate_id}/accept")

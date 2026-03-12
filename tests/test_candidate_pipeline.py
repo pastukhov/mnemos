@@ -153,3 +153,69 @@ def test_candidate_reject_endpoint_marks_candidate_rejected(client):
 
   assert reject_response.status_code == 200
   assert reject_response.json()["candidate"]["status"] == "rejected"
+
+
+def test_candidate_validate_endpoint_returns_errors_without_writing(client):
+  response = client.post(
+    "/memory/candidate/validate",
+    json={
+      "domain": "self",
+      "kind": "fact",
+      "statement": "short",
+      "confidence": 0.8,
+    },
+  )
+
+  assert response.status_code == 200
+  assert response.json()["valid"] is False
+  assert response.json()["errors"][0]["loc"] == ["__root__"]
+
+  list_response = client.get("/memory/candidates", params={"status": "pending"})
+  assert list_response.json()["items"] == []
+
+
+def test_candidate_bulk_create_creates_multiple_candidates(client):
+  response = client.post(
+    "/memory/candidates/bulk",
+    json={
+      "items": [
+        {
+          "domain": "self",
+          "kind": "fact",
+          "statement": "User prefers observable architectures.",
+          "confidence": 0.8,
+          "agent_id": "codex_cli",
+        },
+        {
+          "domain": "interaction",
+          "kind": "note",
+          "statement": "Remember to ask follow-up questions about deployment constraints.",
+          "agent_id": "codex_cli",
+        },
+      ]
+    },
+  )
+
+  assert response.status_code == 201
+  body = response.json()
+  assert body["created"] == 2
+  assert [item["kind"] for item in body["items"]] == ["fact", "note"]
+
+
+def test_long_note_candidate_is_accepted(client):
+  statement = "Long note. " * 800
+
+  response = client.post(
+    "/memory/candidate",
+    json={
+      "domain": "interaction",
+      "kind": "note",
+      "statement": statement,
+      "agent_id": "codex_cli",
+    },
+  )
+
+  assert response.status_code == 201
+  body = response.json()
+  assert body["kind"] == "note"
+  assert body["statement"] == statement.strip()
