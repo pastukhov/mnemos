@@ -149,7 +149,6 @@ docker compose -f docker-compose.yml \
 - вкладку review в веб-интерфейсе
 - MCP flow с `get_schema_info` и `shortlist_memory_items`, если вы
   подключаете агента
-
 ## Если вы хотите подключить агента
 
 После запуска можно использовать MCP endpoint:
