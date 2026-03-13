@@ -85,12 +85,13 @@ def web_overview(
 def web_list_items(
   domain: str = Query(default="self"),
   kind: str | None = Query(default=None),
+  status: str | None = Query(default="accepted"),
   limit: int = Query(default=24, ge=1, le=100),
   memory_service: MemoryService = Depends(get_checked_memory_service),
 ) -> WebListItemsResponse:
   if domain not in ALLOWED_DOMAINS:
     raise HTTPException(status_code=422, detail="unsupported domain")
-  items = memory_service.list_items_by_domain(domain)
+  items = memory_service.list_items_by_domain(domain, status=status)
   if kind is not None:
     items = [item for item in items if item.kind == kind]
   items = list(reversed(items))[:limit]
@@ -204,10 +205,10 @@ def build_shell() -> str:
           <article class="card">
             <h2>Как устроена память</h2>
             <dl class="glossary">
-              <div><dt>Заметка</dt><dd>Исходный текст, который вы сохранили.</dd></div>
-              <div><dt>Факт</dt><dd>Короткое подтверждаемое утверждение, извлечённое из текста.</dd></div>
+              <div><dt>Заметка</dt><dd>Сырой материал интервью: длинный ответ, цитата, рабочая заметка, черновик наблюдения.</dd></div>
+              <div><dt>Факт</dt><dd>Короткое проверяемое утверждение, которое выросло из заметки и подходит для review.</dd></div>
               <div><dt>Вывод</dt><dd>Более общий паттерн, который опирается на несколько фактов.</dd></div>
-              <div><dt>Кандидат</dt><dd>Предложение системы, которое ещё не принято в основную память.</dd></div>
+              <div><dt>Кандидат</dt><dd>Предложение системы с provenance, review session и подсказками о возможных дублях.</dd></div>
             </dl>
           </article>
         </div>
@@ -347,7 +348,7 @@ def build_shell() -> str:
             <h2>Кандидаты на проверку</h2>
             <button class="button button--ghost" id="refresh-review">Обновить</button>
           </div>
-          <p class="muted">Здесь можно принять или отклонить новые записи, которые предложила система или агент.</p>
+          <p class="muted">Здесь кандидаты сгруппированы по review session. На карточке видно источник, режим записи и фрагмент исходного материала.</p>
           <div id="review-list" class="result-list"></div>
         </article>
       </section>

@@ -8,10 +8,10 @@ logger = get_logger(__name__)
 
 def register(mcp: FastMCP, client: MnemosRestClient) -> None:
   @mcp.tool(
-    name="propose_memory_item",
-    description="Propose a memory item candidate for later review and acceptance.",
+    name="validate_memory_item",
+    description="Validate a memory item candidate payload without writing it to Mnemos.",
   )
-  def propose_memory_item(
+  def validate_memory_item(
     domain: str,
     kind: str,
     statement: str,
@@ -23,12 +23,12 @@ def register(mcp: FastMCP, client: MnemosRestClient) -> None:
     review_session_id: str | None = None,
     review_session_label: str | None = None,
   ) -> dict[str, object]:
-    candidate = client.propose_memory_item(
+    result = client.validate_memory_item(
       domain=domain,
       kind=kind,
       statement=statement.strip(),
       confidence=confidence,
-      metadata={"source_type": "mcp", "source_id": "propose_memory_item"},
+      metadata={"source_type": "mcp", "source_id": "validate_memory_item"},
       write_mode=write_mode,
       source_note_id=source_note_id,
       evidence_ref=evidence_ref,
@@ -37,7 +37,7 @@ def register(mcp: FastMCP, client: MnemosRestClient) -> None:
       review_session_label=review_session_label,
     )
     logger.info(
-      "mcp tool propose_memory_item completed",
-      extra={"event": "mcp_tool_propose_memory_item", "candidate_id": str(candidate.id)},
+      "mcp tool validate_memory_item completed",
+      extra={"event": "mcp_tool_validate_memory_item", "valid": result.valid},
     )
-    return candidate.model_dump(mode="json", by_alias=True)
+    return result.model_dump(mode="json", by_alias=True)

@@ -67,10 +67,10 @@ class MemoryService:
       repository = MemoryItemRepository(session)
       return repository.list_by_domain_kind(domain=domain, kind=kind)
 
-  def list_items_by_domain(self, domain: str):
+  def list_items_by_domain(self, domain: str, *, status: str | None = "accepted"):
     with self.session_factory() as session:
       repository = MemoryItemRepository(session)
-      return repository.list_by_domain(domain=domain)
+      return repository.list_by_domain(domain=domain, status=status)
 
   def list_facts_by_source_item_id(self, *, source_item_id: str):
     with self.session_factory() as session:
@@ -198,6 +198,31 @@ class MemoryService:
       payload,
       relations=[(target_item_id, relation_type)],
     )
+
+  def supersede_item(
+    self,
+    *,
+    item_id: UUID,
+    replacement_item_id: UUID,
+  ):
+    with self.session_factory() as session:
+      repository = MemoryItemRepository(session)
+      relation_repository = MemoryRelationRepository(session)
+      item = repository.get(item_id)
+      replacement = repository.get(replacement_item_id)
+      if item is None or replacement is None:
+        return None
+      metadata = dict(item.metadata_json or {})
+      metadata["superseded_by_item_id"] = str(replacement_item_id)
+      repository.update_status(item, status="superseded", metadata=metadata)
+      relation_repository.create(
+        source_item_id=replacement_item_id,
+        target_item_id=item_id,
+        relation_type="supersedes",
+      )
+      session.commit()
+      session.refresh(item)
+      return item
 
   def _create_item(self, payload: MemoryCreateRequest):
     vector = self.embedder.embed_text(payload.statement)

@@ -14,6 +14,7 @@ lead: Пошаговая инструкция — работает на любо
 - API на `http://localhost:8000`
 - MCP endpoint на `http://localhost:9000/mcp`
 - веб-интерфейс на `http://localhost:8000/`
+- review queue, shortlist workflow и grouped review sessions в веб-интерфейсе
 
 ## Перед началом
 
@@ -142,6 +143,12 @@ docker compose -f docker-compose.yml \
 - [Посмотреть ответы на частые вопросы](/mnemos/faq/)
 - [Открыть README](/mnemos/README_ru.md)
 
+После запуска удобно сразу проверить:
+
+- `GET /memory/schema`, чтобы увидеть допустимые значения и лимиты
+- вкладку review в веб-интерфейсе
+- MCP flow с `get_schema_info` и `shortlist_memory_items`, если вы
+  подключаете агента
 ## Если вы хотите подключить агента
 
 После запуска можно использовать MCP endpoint:

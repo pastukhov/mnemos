@@ -28,6 +28,11 @@ Project site: `https://pastukhov.github.io/mnemos`
 - Build `reflection` items from accepted facts with evidence links.
 - Propose agent-generated memory as candidates and review it before
   merging.
+- Preview and shortlist candidates before write for interview-heavy
+  workflows.
+- Group candidates into review sessions with provenance fields like
+  `source_note_id` and `evidence_ref`.
+- Support `upsert` writes that mark replaced memory as `superseded`.
 - Run locally with Docker Compose, Alembic migrations, and a small test
   suite.
 
@@ -116,10 +121,51 @@ curl -X POST http://localhost:8000/memory/candidate \
   }'
 ```
 
+### Validate a candidate without writing it
+
+```sh
+curl -X POST http://localhost:8000/memory/candidate/validate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "domain": "self",
+    "kind": "fact",
+    "statement": "User prefers observable architectures.",
+    "confidence": "high",
+    "write_mode": "upsert"
+  }'
+```
+
+### Build a shortlist before proposing
+
+```sh
+curl -X POST http://localhost:8000/memory/candidates/shortlist \
+  -H "Content-Type: application/json" \
+  -d '{
+    "review_session_label": "Interview 2026-03-13",
+    "items": [
+      {
+        "domain": "self",
+        "kind": "fact",
+        "statement": "User prefers observable architectures.",
+        "confidence": "medium",
+        "source_note_id": "<note-uuid>",
+        "evidence_ref": "answer-1"
+      }
+    ]
+  }'
+```
+
+### Get schema constraints
+
+```sh
+curl http://localhost:8000/memory/schema
+```
+
 ### Review pending candidates
 
 ```sh
 curl "http://localhost:8000/memory/candidates?status=pending"
+curl "http://localhost:8000/memory/review-sessions"
 curl -X POST http://localhost:8000/memory/candidate/<candidate-uuid>/accept
 curl -X POST http://localhost:8000/memory/candidate/<candidate-uuid>/reject \
   -H "Content-Type: application/json" \
@@ -149,8 +195,10 @@ Data flow for the common read path:
 Data flow for agent writes under governance:
 
 1. Agents call `/memory/candidate` directly or via MCP tools.
-1. Candidates remain `pending`.
+1. Agents can first call schema info or shortlist endpoints.
+1. Candidates are grouped into review sessions and remain `pending`.
 1. Acceptance validates duplicates, evidence, and contradiction checks.
+1. In `upsert` mode, replaced memory is marked `superseded`.
 1. Accepted candidates are merged into `memory_items` and indexed.
 
 ## Repository Structure
@@ -290,8 +338,13 @@ Available MCP tools:
 
 - `search_memory`
 - `get_memory_item`
+- `get_schema_info`
 - `add_memory_note`
 - `propose_memory_item`
+- `propose_memory_items`
+- `validate_memory_item`
+- `shortlist_memory_items`
+- `list_review_sessions`
 - `get_context`
 
 Example Claude Desktop configuration:

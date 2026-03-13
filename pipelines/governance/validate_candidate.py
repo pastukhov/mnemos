@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
+from typing import Any
 
 from db.models import MemoryCandidate, MemoryItem
 
@@ -20,6 +21,9 @@ class CandidateValidationResult:
   valid: bool
   reasons: list[str] = field(default_factory=list)
   evidence_items: list[MemoryItem] = field(default_factory=list)
+  dedupe_hints: list[dict[str, Any]] = field(default_factory=list)
+  suggested_action: str | None = None
+  supersede_target_item: MemoryItem | None = None
 
 
 def validate_candidate(
@@ -29,16 +33,32 @@ def validate_candidate(
   evidence_items: list[MemoryItem],
 ) -> CandidateValidationResult:
   reasons: list[str] = []
+  dedupe_hints: list[dict[str, Any]] = []
+  best_hint: tuple[float, MemoryItem] | None = None
+  write_mode = _get_metadata_value(candidate, "write_mode") or "create"
 
   normalized_candidate = normalize_statement(candidate.statement)
   for item in accepted_items:
-    if item.domain != candidate.domain:
+    if item.domain != candidate.domain or item.kind != candidate.kind:
       continue
     normalized_existing = normalize_statement(item.statement)
     if not normalized_existing:
       continue
     similarity = SequenceMatcher(None, normalized_candidate, normalized_existing).ratio()
-    if similarity >= 0.92:
+    if similarity >= 0.75:
+      action = "consider_upsert"
+      dedupe_hints.append(
+        {
+          "existing_item_id": str(item.id),
+          "similarity": round(similarity, 3),
+          "statement": item.statement,
+          "status": item.status,
+          "action": action,
+        }
+      )
+      if best_hint is None or similarity > best_hint[0]:
+        best_hint = (similarity, item)
+    if similarity >= 0.97:
       reasons.append("candidate duplicates existing accepted memory")
       break
 
@@ -57,10 +77,23 @@ def validate_candidate(
   if _has_basic_contradiction(candidate.statement, accepted_items, candidate.domain):
     reasons.append("candidate may contradict accepted memory")
 
+  supersede_target = None
+  suggested_action = None
+  if write_mode == "upsert" and best_hint is not None and best_hint[0] >= 0.75:
+    supersede_target = best_hint[1]
+    suggested_action = "upsert_existing_memory"
+  elif best_hint is not None and best_hint[0] >= 0.75:
+    suggested_action = "consider_upsert_existing_memory"
+  elif dedupe_hints:
+    suggested_action = "review_possible_duplicate"
+
   return CandidateValidationResult(
     valid=not reasons,
     reasons=reasons,
     evidence_items=evidence_items,
+    dedupe_hints=dedupe_hints,
+    suggested_action=suggested_action,
+    supersede_target_item=supersede_target,
   )
 
 
@@ -70,6 +103,11 @@ def _extract_source_fact_ids(candidate: MemoryCandidate) -> list[str]:
   if not isinstance(fact_ids, list):
     return []
   return [fact_id for fact_id in fact_ids if isinstance(fact_id, str) and fact_id.strip()]
+
+
+def _get_metadata_value(candidate: MemoryCandidate, key: str) -> Any:
+  metadata = candidate.metadata_json or {}
+  return metadata.get(key)
 
 
 def _has_basic_contradiction(statement: str, accepted_items: list[MemoryItem], domain: str) -> bool:

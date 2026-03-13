@@ -27,6 +27,10 @@ governance, прежде чем она попадёт в accepted memory.
 - Построение `reflection` items из принятых facts со связями на
   evidence.
 - Создание agent-generated memory как candidates с review перед merge.
+- Preview, shortlist и bulk propose для interview-style workflow.
+- Review sessions, provenance (`source_note_id`, `evidence_ref`) и
+  dedupe hints.
+- `upsert`-режим, который переводит заменённые записи в `superseded`.
 - Локальный запуск через Docker Compose, Alembic migrations и небольшой
   test suite.
 
@@ -129,10 +133,51 @@ curl -X POST http://localhost:8000/memory/candidate \
   }'
 ```
 
+### Проверить candidate без записи
+
+```sh
+curl -X POST http://localhost:8000/memory/candidate/validate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "domain": "self",
+    "kind": "fact",
+    "statement": "User prefers observable architectures.",
+    "confidence": "high",
+    "write_mode": "upsert"
+  }'
+```
+
+### Собрать shortlist перед review
+
+```sh
+curl -X POST http://localhost:8000/memory/candidates/shortlist \
+  -H "Content-Type: application/json" \
+  -d '{
+    "review_session_label": "Interview 2026-03-13",
+    "items": [
+      {
+        "domain": "self",
+        "kind": "fact",
+        "statement": "User prefers observable architectures.",
+        "confidence": "medium",
+        "source_note_id": "<note-uuid>",
+        "evidence_ref": "answer-1"
+      }
+    ]
+  }'
+```
+
+### Получить schema info
+
+```sh
+curl http://localhost:8000/memory/schema
+```
+
 ### Просмотреть pending candidates
 
 ```sh
 curl "http://localhost:8000/memory/candidates?status=pending"
+curl "http://localhost:8000/memory/review-sessions"
 curl -X POST http://localhost:8000/memory/candidate/<candidate-uuid>/accept
 curl -X POST http://localhost:8000/memory/candidate/<candidate-uuid>/reject \
   -H "Content-Type: application/json" \
@@ -162,9 +207,12 @@ curl -X POST http://localhost:8000/memory/candidate/<candidate-uuid>/reject \
 Поток данных для agent writes под governance:
 
 1. Агенты вызывают `/memory/candidate` напрямую или через MCP tools.
-1. Candidates остаются в статусе `pending`.
+1. Перед записью они могут вызвать schema info или shortlist.
+1. Candidates группируются в review sessions и остаются в статусе
+   `pending`.
 1. На accept выполняется валидация duplicate, evidence и contradiction
    checks.
+1. В `upsert`-режиме заменяемая запись помечается как `superseded`.
 1. Принятые candidates мерджатся в `memory_items` и индексируются.
 
 ## Структура репозитория
@@ -304,8 +352,13 @@ mnemos mcp-server --transport streamable-http --host 0.0.0.0 --port 9000
 
 - `search_memory`
 - `get_memory_item`
+- `get_schema_info`
 - `add_memory_note`
 - `propose_memory_item`
+- `propose_memory_items`
+- `validate_memory_item`
+- `shortlist_memory_items`
+- `list_review_sessions`
 - `get_context`
 
 Пример конфигурации для Claude Desktop:

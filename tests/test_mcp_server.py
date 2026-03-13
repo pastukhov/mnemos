@@ -78,6 +78,34 @@ async def test_mcp_get_memory_item_handles_missing_item():
 
 
 @pytest.mark.asyncio
+async def test_mcp_get_schema_info_returns_constraints():
+  def handler(request: httpx.Request) -> httpx.Response:
+    assert request.method == "GET"
+    assert request.url.path == "/memory/schema"
+    return httpx.Response(
+      200,
+      json={
+        "schema": {
+          "domains": ["self", "project", "operational", "interaction"],
+          "kinds": ["raw", "fact", "reflection", "summary", "note", "decision", "task", "tension"],
+          "memory_candidate": {
+            "note_statement": {"min_length": 1, "max_length": 10000},
+          },
+        }
+      },
+    )
+
+  server = build_mcp_server(
+    settings=Settings(),
+    client=build_rest_client(handler),
+  )
+  result = await server.call_tool("get_schema_info", {})
+
+  assert "interaction" in result.structured_content["schema"]["domains"]
+  assert result.structured_content["schema"]["memory_candidate"]["note_statement"]["max_length"] == 10000
+
+
+@pytest.mark.asyncio
 async def test_mcp_add_memory_note_posts_expected_payload():
   def handler(request: httpx.Request) -> httpx.Response:
     assert request.method == "POST"
@@ -159,6 +187,245 @@ async def test_mcp_propose_memory_item_posts_candidate_payload():
 
   assert result.structured_content["kind"] == "fact"
   assert result.structured_content["status"] == "pending"
+
+
+@pytest.mark.asyncio
+async def test_mcp_validate_memory_item_uses_preview_endpoint():
+  def handler(request: httpx.Request) -> httpx.Response:
+    assert request.method == "POST"
+    assert request.url.path == "/memory/candidate/validate"
+    return httpx.Response(
+      200,
+      json={
+        "valid": False,
+        "candidate": None,
+        "errors": [{"loc": ["__root__"], "message": "statement must be at least 10 characters for kind=fact"}],
+      },
+    )
+
+  server = build_mcp_server(
+    settings=Settings(),
+    client=build_rest_client(handler),
+  )
+  result = await server.call_tool(
+    "validate_memory_item",
+    {
+      "domain": "self",
+      "kind": "fact",
+      "statement": "short",
+      "confidence": 0.8,
+    },
+  )
+
+  assert result.structured_content["valid"] is False
+  assert result.structured_content["errors"][0]["loc"] == ["__root__"]
+
+
+@pytest.mark.asyncio
+async def test_mcp_propose_memory_items_posts_bulk_payload():
+  def handler(request: httpx.Request) -> httpx.Response:
+    assert request.method == "POST"
+    assert request.url.path == "/memory/candidates/bulk"
+    payload = request.read().decode("utf-8")
+    assert '"statement":"User prefers observable architectures."' in payload
+    assert '"statement":"Remember deployment constraints."' in payload
+    return httpx.Response(
+      201,
+      json={
+        "created": 2,
+        "items": [
+          {
+            "id": "48b76e6b-fd5f-4ed9-ab06-d9de9f3e05c4",
+            "domain": "self",
+            "kind": "fact",
+            "statement": "User prefers observable architectures.",
+            "confidence": 0.8,
+            "agent_id": "mcp_server",
+            "evidence": None,
+            "status": "pending",
+            "metadata": None,
+            "created_at": "2026-03-10T10:00:00Z",
+            "reviewed_at": None,
+          },
+          {
+            "id": "70d8765e-fd5f-4ed9-ab06-d9de9f3e05c4",
+            "domain": "interaction",
+            "kind": "note",
+            "statement": "Remember deployment constraints.",
+            "confidence": None,
+            "agent_id": "mcp_server",
+            "evidence": None,
+            "status": "pending",
+            "metadata": None,
+            "created_at": "2026-03-10T10:00:00Z",
+            "reviewed_at": None,
+          },
+        ],
+      },
+    )
+
+  server = build_mcp_server(
+    settings=Settings(),
+    client=build_rest_client(handler),
+  )
+  result = await server.call_tool(
+    "propose_memory_items",
+    {
+      "items": [
+        {
+          "domain": "self",
+          "kind": "fact",
+          "statement": "User prefers observable architectures.",
+          "confidence": 0.8,
+        },
+        {
+          "domain": "interaction",
+          "kind": "note",
+          "statement": "Remember deployment constraints.",
+        },
+      ]
+    },
+  )
+
+  assert result.structured_content["created"] == 2
+  assert len(result.structured_content["items"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_mcp_shortlist_memory_items_posts_shortlist_payload():
+  def handler(request: httpx.Request) -> httpx.Response:
+    assert request.method == "POST"
+    assert request.url.path == "/memory/candidates/shortlist"
+    return httpx.Response(
+      200,
+      json={
+        "review_session": {"id": "review-123", "label": "Interview 2026-03-13", "kind": "review"},
+        "ready_count": 1,
+        "invalid_count": 0,
+        "items": [
+          {
+            "index": 1,
+            "valid": True,
+            "candidate": {
+              "domain": "self",
+              "kind": "fact",
+              "statement": "User prefers observable architectures.",
+              "confidence": 0.8,
+              "write_mode": "create",
+            },
+            "errors": [],
+            "preview": {
+              "normalized_statement": "userprefersobservablearchitectures",
+              "write_mode": "create",
+              "will_create_status": "accepted",
+              "preview_metadata": {},
+              "review_session": {"id": "review-123", "label": "Interview 2026-03-13", "kind": "review"},
+              "dedupe_hints": [],
+              "suggested_action": None,
+              "suggested_replacement_item_id": None,
+            },
+            "dedupe_hints": [],
+          }
+        ],
+      },
+    )
+
+  server = build_mcp_server(
+    settings=Settings(),
+    client=build_rest_client(handler),
+  )
+  result = await server.call_tool(
+    "shortlist_memory_items",
+    {
+      "items": [
+        {
+          "domain": "self",
+          "kind": "fact",
+          "statement": "User prefers observable architectures.",
+          "confidence": 0.8,
+        }
+      ],
+      "review_session_label": "Interview 2026-03-13",
+    },
+  )
+
+  assert result.structured_content["review_session"]["id"] == "review-123"
+  assert result.structured_content["ready_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_mcp_list_review_sessions_reads_grouped_sessions():
+  def handler(request: httpx.Request) -> httpx.Response:
+    assert request.method == "GET"
+    assert request.url.path == "/memory/review-sessions"
+    return httpx.Response(
+      200,
+      json={
+        "items": [
+          {
+            "review_session": {
+              "id": "interview-123",
+              "label": "Interview 2026-03-13",
+              "kind": "interview",
+              "created_by": "mcp_server",
+            },
+            "candidate_count": 4,
+            "pending_count": 3,
+            "accepted_count": 1,
+            "rejected_count": 0,
+            "superseded_count": 0,
+            "latest_created_at": "2026-03-13T08:00:00Z",
+          }
+        ]
+      },
+    )
+
+  server = build_mcp_server(
+    settings=Settings(),
+    client=build_rest_client(handler),
+  )
+  result = await server.call_tool("list_review_sessions", {})
+
+  assert result.structured_content["items"][0]["review_session"]["kind"] == "interview"
+  assert result.structured_content["items"][0]["pending_count"] == 3
+
+
+@pytest.mark.asyncio
+async def test_mcp_add_memory_note_accepts_long_text():
+  long_text = "Remember this long interview note. " * 400
+
+  def handler(request: httpx.Request) -> httpx.Response:
+    assert request.method == "POST"
+    assert request.url.path == "/memory/candidate"
+    payload = request.read().decode("utf-8")
+    assert long_text.strip() in payload
+    return httpx.Response(
+      201,
+      json={
+        "id": "48b76e6b-fd5f-4ed9-ab06-d9de9f3e05c4",
+        "domain": "interaction",
+        "kind": "note",
+        "statement": long_text.strip(),
+        "confidence": None,
+        "agent_id": "mcp_server",
+        "evidence": None,
+        "status": "pending",
+        "metadata": {"source_type": "mcp", "source_id": "add_memory_note"},
+        "created_at": "2026-03-10T10:00:00Z",
+        "reviewed_at": None,
+      },
+    )
+
+  server = build_mcp_server(
+    settings=Settings(),
+    client=build_rest_client(handler),
+  )
+  result = await server.call_tool(
+    "add_memory_note",
+    {"text": long_text},
+  )
+
+  assert result.structured_content["statement"] == long_text.strip()
 
 
 @pytest.mark.asyncio
