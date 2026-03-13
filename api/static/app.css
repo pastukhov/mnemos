@@ -113,6 +113,35 @@ h1 {
   align-self: stretch;
 }
 
+.language-switch {
+  display: inline-flex;
+  align-self: flex-end;
+  gap: 8px;
+  padding: 6px;
+  margin-left: auto;
+  margin-bottom: 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 250, 241, 0.88);
+}
+
+.language-switch__button {
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.language-switch__button.is-active {
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+  color: #fff9f2;
+}
+
 .status-card__row {
   display: flex;
   justify-content: space-between;

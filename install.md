@@ -2,6 +2,8 @@
 layout: default
 title: Установка
 permalink: /install/
+lang: ru
+alternate_url: /en/install/
 lead: Пошаговая инструкция — работает на любой платформе с Docker
 ---
 
@@ -149,6 +151,7 @@ docker compose -f docker-compose.yml \
 - вкладку review в веб-интерфейсе
 - MCP flow с `get_schema_info` и `shortlist_memory_items`, если вы
   подключаете агента
+
 ## Если вы хотите подключить агента
 
 После запуска можно использовать MCP endpoint:
