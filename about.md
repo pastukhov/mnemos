@@ -2,6 +2,8 @@
 layout: default
 title: О проекте Mnemos
 permalink: /about/
+lang: ru
+alternate_url: /en/about/
 lead: Полное описание проекта, его задач, сценариев использования и
   принципов работы.
 ---

@@ -2,6 +2,8 @@
 layout: default
 title: FAQ
 permalink: /faq/
+lang: ru
+alternate_url: /en/faq/
 lead: Короткие ответы на самые частые вопросы о Mnemos, запуске и
   повседневном использовании.
 ---

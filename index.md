@@ -2,6 +2,8 @@
 layout: default
 title: Mnemos
 permalink: /
+lang: ru
+alternate_url: /en/
 lead: Память для ваших AI-помощников, оформленная в том же визуальном
   языке, что и интерфейс приложения.
 ---

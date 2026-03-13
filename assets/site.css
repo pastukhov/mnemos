@@ -79,6 +79,33 @@ a {
   padding: 24px;
 }
 
+.language-switch {
+  display: inline-flex;
+  align-self: flex-end;
+  gap: 8px;
+  padding: 6px;
+  margin-left: auto;
+  margin-bottom: 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 250, 241, 0.88);
+}
+
+.language-link {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 8px 12px;
+  color: var(--muted);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.language-link.is-active {
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+  color: #fff9f2;
+}
+
 .eyebrow {
   margin: 0 0 8px;
   letter-spacing: 0.12em;

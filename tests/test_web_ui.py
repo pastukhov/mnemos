@@ -4,7 +4,16 @@ def test_web_shell_renders_homepage(client):
   assert response.status_code == 200
   assert "Mnemos" in response.text
   assert "Добавить первую запись" in response.text
+  assert 'data-lang-switch="ru"' in response.text
+  assert 'data-lang-switch="en"' in response.text
   assert "/ui/static/app.js" in response.text
+
+
+def test_web_shell_accepts_initial_language_override(client):
+  response = client.get("/ui", params={"lang": "en"})
+
+  assert response.status_code == 200
+  assert 'data-initial-lang="en"' in response.text
 
 
 def test_web_overview_reports_counts(client):
