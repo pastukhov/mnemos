@@ -4,6 +4,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from api.routes.health import router as health_router
 from api.routes.memory import router as memory_router
 from api.routes.web import router as web_router
+from api.validation import register_validation_exception_handler
 from core.config import Settings, get_settings
 from core.logging import setup_logging
 from core.metrics import (
@@ -35,6 +36,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
   app = FastAPI(title="mnemos", version="0.1.0")
   app.add_middleware(PrometheusMiddleware)
   app.state.settings = settings
+  register_validation_exception_handler(app)
 
   engine = create_engine(settings.postgres_dsn)
   session_factory = create_session_factory(engine)

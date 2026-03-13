@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from db.models import CandidateMetric, MemoryCandidate, MemoryItem, MemoryRelation
 
 
@@ -24,6 +26,18 @@ def test_candidate_creation_and_listing(client):
   assert list_response.status_code == 200
   assert len(items) == 1
   assert items[0]["agent_id"] == "codex_cli"
+
+
+def test_schema_endpoint_exposes_constraints(client):
+  response = client.get("/memory/schema")
+
+  assert response.status_code == 200
+  body = response.json()["schema"]
+  assert "self" in body["domains"]
+  assert "fact" in body["kinds"]
+  assert body["memory_candidate"]["note_statement"]["max_length"] == 50_000
+  assert body["confidence"]["aliases"]["high"] == 0.9
+  assert "upsert" in body["memory_candidate"]["write_modes"]["allowed_values"]
 
 
 def test_candidate_accept_merges_into_memory_and_creates_relations(client):
@@ -200,6 +214,7 @@ def test_candidate_bulk_create_creates_multiple_candidates(client):
   body = response.json()
   assert body["created"] == 2
   assert [item["kind"] for item in body["items"]] == ["fact", "note"]
+  assert body["review_session"] is not None
 
 
 def test_long_note_candidate_is_accepted(client):
@@ -219,3 +234,145 @@ def test_long_note_candidate_is_accepted(client):
   body = response.json()
   assert body["kind"] == "note"
   assert body["statement"] == statement.strip()
+
+
+def test_candidate_create_returns_structured_validation_errors(client):
+  response = client.post(
+    "/memory/candidate",
+    json={
+      "domain": "self",
+      "kind": "goal",
+      "statement": "User wants a better workflow.",
+      "confidence": "certain",
+    },
+  )
+
+  assert response.status_code == 422
+  body = response.json()["detail"]
+  assert body["message"] == "Request validation failed."
+  messages = [item["message"] for item in body["errors"]]
+  assert any("Allowed values" in message for message in messages)
+  assert any("Use a numeric value such as 0.85" in message for message in messages)
+
+
+def test_candidate_validate_supports_confidence_alias_and_dedupe_hints(client):
+  client.post(
+    "/memory/items",
+    json={
+      "domain": "self",
+      "kind": "fact",
+      "statement": "User prefers structured review workflows.",
+      "confidence": 0.82,
+    },
+  )
+
+  response = client.post(
+    "/memory/candidate/validate",
+    json={
+      "domain": "self",
+      "kind": "fact",
+      "statement": "User prefers structured review workflows for memory updates.",
+      "confidence": "high",
+      "write_mode": "upsert",
+    },
+  )
+
+  assert response.status_code == 200
+  body = response.json()
+  assert body["candidate"]["confidence"] == 0.9
+  assert body["preview"]["write_mode"] == "upsert"
+  assert body["dedupe_hints"]
+  assert body["preview"]["suggested_action"] in {"consider_upsert_existing_memory", "upsert_existing_memory"}
+
+
+def test_candidate_shortlist_groups_items_into_review_session(client):
+  response = client.post(
+    "/memory/candidates/shortlist",
+    json={
+      "review_session_label": "Interview 2026-03-13",
+      "items": [
+        {
+          "domain": "self",
+          "kind": "fact",
+          "statement": "User prefers explicit API contracts.",
+          "confidence": "medium",
+        },
+        {
+          "domain": "interaction",
+          "kind": "note",
+          "statement": "Interview raw note. " * 50,
+        },
+      ],
+    },
+  )
+
+  assert response.status_code == 200
+  body = response.json()
+  assert body["ready_count"] == 2
+  assert body["review_session"]["id"].startswith("review-")
+  assert body["items"][0]["preview"]["review_session"]["label"] == "Interview 2026-03-13"
+
+
+def test_interview_propose_creates_review_session_and_source_provenance(client):
+  note = client.post(
+    "/memory/items",
+    json={
+      "domain": "interaction",
+      "kind": "note",
+      "statement": "Interview answer about observability and explicit contracts.",
+    },
+  ).json()
+
+  response = client.post(
+    "/memory/interview/propose",
+    json={
+      "review_session_label": "Interview 2026-03-13",
+      "items": [
+        {
+          "domain": "self",
+          "kind": "fact",
+          "statement": "User prefers explicit contracts and observability.",
+          "source_note_id": note["id"],
+          "evidence_ref": "answer-1",
+          "source_excerpt": "observability and explicit contracts",
+          "write_mode": "create",
+        }
+      ],
+    },
+  )
+
+  assert response.status_code == 201
+  body = response.json()
+  assert body["review_session"]["kind"] == "interview"
+  assert body["items"][0]["source_note_id"] == note["id"]
+  assert body["items"][0]["evidence_ref"] == "answer-1"
+
+
+def test_candidate_upsert_supersedes_existing_memory(client):
+  existing = client.post(
+    "/memory/items",
+    json={
+      "domain": "self",
+      "kind": "fact",
+      "statement": "User prefers observable architectures with strong telemetry.",
+      "confidence": 0.75,
+    },
+  ).json()
+  candidate = client.post(
+    "/memory/candidate",
+    json={
+      "domain": "self",
+      "kind": "fact",
+      "statement": "User prefers observable architectures with strong telemetry and explicit contracts.",
+      "confidence": "high",
+      "write_mode": "upsert",
+    },
+  ).json()
+
+  accept_response = client.post(f"/memory/candidate/{candidate['id']}/accept")
+
+  assert accept_response.status_code == 200
+  with client.app.state.session_factory() as session:
+    superseded = session.get(MemoryItem, UUID(existing["id"]))
+  assert superseded.status == "superseded"
+  assert superseded.metadata_json["superseded_by_item_id"] == accept_response.json()["merged_item"]["id"]

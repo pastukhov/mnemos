@@ -45,26 +45,20 @@ class MemoryItemRepository:
     return self.session.execute(query).scalar_one_or_none()
 
   def list_by_domain_kind(self, *, domain: str, kind: str, status: str = "accepted") -> list[MemoryItem]:
-    query = (
-      select(MemoryItem)
-      .where(
-        MemoryItem.domain == domain,
-        MemoryItem.kind == kind,
-        MemoryItem.status == status,
-      )
-      .order_by(MemoryItem.created_at.asc())
+    query = select(MemoryItem).where(
+      MemoryItem.domain == domain,
+      MemoryItem.kind == kind,
     )
+    if status is not None:
+      query = query.where(MemoryItem.status == status)
+    query = query.order_by(MemoryItem.created_at.asc())
     return list(self.session.execute(query).scalars())
 
-  def list_by_domain(self, *, domain: str, status: str = "accepted") -> list[MemoryItem]:
-    query = (
-      select(MemoryItem)
-      .where(
-        MemoryItem.domain == domain,
-        MemoryItem.status == status,
-      )
-      .order_by(MemoryItem.created_at.asc())
-    )
+  def list_by_domain(self, *, domain: str, status: str | None = "accepted") -> list[MemoryItem]:
+    query = select(MemoryItem).where(MemoryItem.domain == domain)
+    if status is not None:
+      query = query.where(MemoryItem.status == status)
+    query = query.order_by(MemoryItem.created_at.asc())
     return list(self.session.execute(query).scalars())
 
   def list_facts_by_source_item_id(self, *, source_item_id: str) -> list[MemoryItem]:
@@ -109,6 +103,21 @@ class MemoryItemRepository:
 
   def touch(self, item: MemoryItem) -> MemoryItem:
     item.updated_at = datetime.now(UTC)
+    self.session.add(item)
+    self.session.flush()
+    return item
+
+  def update_status(
+    self,
+    item: MemoryItem,
+    *,
+    status: str,
+    metadata: dict[str, object] | None = None,
+  ) -> MemoryItem:
+    item.status = status
+    item.updated_at = datetime.now(UTC)
+    if metadata is not None:
+      item.metadata_json = metadata
     self.session.add(item)
     self.session.flush()
     return item

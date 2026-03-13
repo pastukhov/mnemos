@@ -7,11 +7,15 @@ from api.schemas import (
   MemoryCandidateBulkCreateRequest,
   MemoryCandidateBulkCreateResponse,
   MemoryCandidateCreateRequest,
+  MemoryCandidateShortlistRequest,
+  MemoryCandidateShortlistResponse,
   MemoryCandidateResponse,
   MemoryCandidateValidateResponse,
   MemoryItemResponse,
   MemoryQueryRequest,
   MemoryQueryResponse,
+  MemorySchemaInfoResponse,
+  ReviewSessionListResponse,
 )
 from core.logging import get_logger
 
@@ -61,13 +65,29 @@ class MnemosRestClient:
       return None
     return MemoryItemResponse.model_validate(response.json())
 
-  def add_memory_note(self, *, text: str) -> MemoryCandidateResponse:
+  def get_schema_info(self) -> MemorySchemaInfoResponse:
+    response = self._request("GET", "/memory/schema")
+    return MemorySchemaInfoResponse.model_validate(response.json())
+
+  def list_review_sessions(self) -> ReviewSessionListResponse:
+    response = self._request("GET", "/memory/review-sessions")
+    return ReviewSessionListResponse.model_validate(response.json())
+
+  def add_memory_note(
+    self,
+    *,
+    text: str,
+    review_session_id: str | None = None,
+    review_session_label: str | None = None,
+  ) -> MemoryCandidateResponse:
     payload = MemoryCandidateCreateRequest(
       domain="interaction",
       kind="note",
       statement=text,
       agent_id="mcp_server",
       metadata={"source_type": "mcp", "source_id": "add_memory_note"},
+      review_session_id=review_session_id,
+      review_session_label=review_session_label,
     )
     response = self._request("POST", "/memory/candidate", json=payload.model_dump())
     return MemoryCandidateResponse.model_validate(response.json())
@@ -82,6 +102,12 @@ class MnemosRestClient:
     evidence: dict[str, object] | None = None,
     metadata: dict[str, object] | None = None,
     agent_id: str = "mcp_server",
+    write_mode: str = "create",
+    source_note_id: str | None = None,
+    evidence_ref: str | None = None,
+    source_excerpt: str | None = None,
+    review_session_id: str | None = None,
+    review_session_label: str | None = None,
   ) -> MemoryCandidateValidateResponse:
     response = self._request(
       "POST",
@@ -94,6 +120,12 @@ class MnemosRestClient:
         "evidence": evidence,
         "metadata": metadata,
         "agent_id": agent_id,
+        "write_mode": write_mode,
+        "source_note_id": source_note_id,
+        "evidence_ref": evidence_ref,
+        "source_excerpt": source_excerpt,
+        "review_session_id": review_session_id,
+        "review_session_label": review_session_label,
       },
     )
     return MemoryCandidateValidateResponse.model_validate(response.json())
@@ -108,6 +140,12 @@ class MnemosRestClient:
     evidence: dict[str, object] | None = None,
     metadata: dict[str, object] | None = None,
     agent_id: str = "mcp_server",
+    write_mode: str = "create",
+    source_note_id: str | None = None,
+    evidence_ref: str | None = None,
+    source_excerpt: str | None = None,
+    review_session_id: str | None = None,
+    review_session_label: str | None = None,
   ) -> MemoryCandidateResponse:
     payload = MemoryCandidateCreateRequest(
       domain=domain,
@@ -117,6 +155,12 @@ class MnemosRestClient:
       agent_id=agent_id,
       evidence=evidence,
       metadata=metadata,
+      write_mode=write_mode,
+      source_note_id=source_note_id,
+      evidence_ref=evidence_ref,
+      source_excerpt=source_excerpt,
+      review_session_id=review_session_id,
+      review_session_label=review_session_label,
     )
     response = self._request("POST", "/memory/candidate", json=payload.model_dump())
     return MemoryCandidateResponse.model_validate(response.json())
@@ -126,6 +170,8 @@ class MnemosRestClient:
     *,
     items: list[dict[str, object]],
     agent_id: str = "mcp_server",
+    review_session_id: str | None = None,
+    review_session_label: str | None = None,
   ) -> MemoryCandidateBulkCreateResponse:
     payload = MemoryCandidateBulkCreateRequest(
       items=[
@@ -137,12 +183,53 @@ class MnemosRestClient:
           evidence=item.get("evidence"),
           metadata=item.get("metadata"),
           agent_id=str(item.get("agent_id") or agent_id),
+          write_mode=str(item.get("write_mode") or "create"),
+          source_note_id=item.get("source_note_id"),
+          evidence_ref=item.get("evidence_ref"),
+          source_excerpt=item.get("source_excerpt"),
+          review_session_id=item.get("review_session_id"),
+          review_session_label=item.get("review_session_label"),
         )
         for item in items
-      ]
+      ],
+      review_session_id=review_session_id,
+      review_session_label=review_session_label,
     )
     response = self._request("POST", "/memory/candidates/bulk", json=payload.model_dump())
     return MemoryCandidateBulkCreateResponse.model_validate(response.json())
+
+  def shortlist_memory_items(
+    self,
+    *,
+    items: list[dict[str, object]],
+    agent_id: str = "mcp_server",
+    review_session_id: str | None = None,
+    review_session_label: str | None = None,
+  ) -> MemoryCandidateShortlistResponse:
+    payload = MemoryCandidateShortlistRequest(
+      items=[
+        MemoryCandidateCreateRequest(
+          domain=str(item["domain"]),
+          kind=str(item["kind"]),
+          statement=str(item["statement"]),
+          confidence=item.get("confidence"),
+          evidence=item.get("evidence"),
+          metadata=item.get("metadata"),
+          agent_id=str(item.get("agent_id") or agent_id),
+          write_mode=str(item.get("write_mode") or "create"),
+          source_note_id=item.get("source_note_id"),
+          evidence_ref=item.get("evidence_ref"),
+          source_excerpt=item.get("source_excerpt"),
+          review_session_id=item.get("review_session_id"),
+          review_session_label=item.get("review_session_label"),
+        )
+        for item in items
+      ],
+      review_session_id=review_session_id,
+      review_session_label=review_session_label,
+    )
+    response = self._request("POST", "/memory/candidates/shortlist", json=payload.model_dump())
+    return MemoryCandidateShortlistResponse.model_validate(response.json())
 
   def accept_candidate(self, candidate_id: str) -> CandidateDecisionResponse:
     response = self._request("POST", f"/memory/candidate/{candidate_id}/accept")
@@ -201,4 +288,21 @@ def _extract_error_detail(response: httpx.Response) -> str:
     detail = payload["detail"]
     if isinstance(detail, str):
       return detail
+    if isinstance(detail, dict):
+      message = detail.get("message")
+      errors = detail.get("errors")
+      if isinstance(errors, list) and errors:
+        formatted_errors = []
+        for error in errors:
+          if not isinstance(error, dict):
+            continue
+          field = error.get("field", "request")
+          error_message = error.get("message", "validation error")
+          formatted_errors.append(f"{field}: {error_message}")
+        if formatted_errors:
+          if isinstance(message, str) and message:
+            return f"{message} {'; '.join(formatted_errors)}"
+          return "; ".join(formatted_errors)
+      if isinstance(message, str) and message:
+        return message
   return response.text or "unexpected response"

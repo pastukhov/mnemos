@@ -208,7 +208,11 @@ function bindReviewActions() {
 }
 
 async function loadReviewQueue() {
-  const response = await fetch("/memory/candidates?status=pending");
+  const [sessionsResponse, response] = await Promise.all([
+    fetch("/memory/review-sessions"),
+    fetch("/memory/candidates?status=pending"),
+  ]);
+  const sessionsData = await sessionsResponse.json();
   const data = await response.json();
   const root = document.getElementById("review-list");
   root.innerHTML = "";
@@ -216,23 +220,59 @@ async function loadReviewQueue() {
     root.innerHTML = '<div class="empty-state">Сейчас нет кандидатов, ожидающих проверки.</div>';
     return;
   }
-
+  const sessions = new Map((sessionsData.items || []).map((item) => [item.review_session.id, item]));
+  const grouped = new Map();
   data.items.forEach((candidate) => {
-    const card = document.createElement("article");
-    card.className = "result-card";
-    card.innerHTML = `
+    const sessionId = candidate.review_session?.id || "ungrouped";
+    if (!grouped.has(sessionId)) {
+      grouped.set(sessionId, []);
+    }
+    grouped.get(sessionId).push(candidate);
+  });
+
+  grouped.forEach((candidates, sessionId) => {
+    const session = sessions.get(sessionId);
+    const wrapper = document.createElement("section");
+    wrapper.className = "stack";
+    const first = candidates[0];
+    const title = first.review_session?.label || "Без review session";
+    const header = document.createElement("article");
+    header.className = "result-card";
+    header.innerHTML = `
       <div class="result-card__meta">
-        <span class="pill pill--accent">${candidate.kind}</span>
-        <span class="pill">${candidate.domain}</span>
-        <span class="pill">confidence ${candidate.confidence ?? "—"}</span>
-      </div>
-      <p>${escapeHtml(candidate.statement)}</p>
-      <div class="actions-inline">
-        <button class="button button--primary" data-action="accept" data-id="${candidate.id}">Принять</button>
-        <button class="button button--ghost" data-action="reject" data-id="${candidate.id}">Отклонить</button>
+        <span class="pill pill--accent">session</span>
+        <span class="pill">${escapeHtml(title)}</span>
+        <span class="pill">${escapeHtml(sessionId)}</span>
+        <span class="pill">pending ${session ? session.pending_count : candidates.length}</span>
       </div>
     `;
-    root.append(card);
+    wrapper.append(header);
+
+    candidates.forEach((candidate) => {
+      const card = document.createElement("article");
+      card.className = "result-card";
+      const provenance = [
+        candidate.source_note_id ? `source_note ${candidate.source_note_id}` : null,
+        candidate.evidence_ref ? `evidence_ref ${candidate.evidence_ref}` : null,
+        candidate.write_mode ? `mode ${candidate.write_mode}` : null,
+      ].filter(Boolean);
+      card.innerHTML = `
+        <div class="result-card__meta">
+          <span class="pill pill--accent">${candidate.kind}</span>
+          <span class="pill">${candidate.domain}</span>
+          <span class="pill">confidence ${candidate.confidence ?? "—"}</span>
+        </div>
+        <p>${escapeHtml(candidate.statement)}</p>
+        ${provenance.length ? `<p class="muted">${escapeHtml(provenance.join(" • "))}</p>` : ""}
+        ${candidate.source_excerpt ? `<blockquote>${escapeHtml(candidate.source_excerpt)}</blockquote>` : ""}
+        <div class="actions-inline">
+          <button class="button button--primary" data-action="accept" data-id="${candidate.id}">Принять</button>
+          <button class="button button--ghost" data-action="reject" data-id="${candidate.id}">Отклонить</button>
+        </div>
+      `;
+      wrapper.append(card);
+    });
+    root.append(wrapper);
   });
 
   root.querySelectorAll("[data-action='accept']").forEach((button) => {

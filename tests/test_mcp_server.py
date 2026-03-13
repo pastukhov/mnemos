@@ -78,6 +78,34 @@ async def test_mcp_get_memory_item_handles_missing_item():
 
 
 @pytest.mark.asyncio
+async def test_mcp_get_schema_info_returns_constraints():
+  def handler(request: httpx.Request) -> httpx.Response:
+    assert request.method == "GET"
+    assert request.url.path == "/memory/schema"
+    return httpx.Response(
+      200,
+      json={
+        "schema": {
+          "domains": ["self", "project", "operational", "interaction"],
+          "kinds": ["raw", "fact", "reflection", "summary", "note", "decision", "task", "tension"],
+          "memory_candidate": {
+            "note_statement": {"min_length": 1, "max_length": 10000},
+          },
+        }
+      },
+    )
+
+  server = build_mcp_server(
+    settings=Settings(),
+    client=build_rest_client(handler),
+  )
+  result = await server.call_tool("get_schema_info", {})
+
+  assert "interaction" in result.structured_content["schema"]["domains"]
+  assert result.structured_content["schema"]["memory_candidate"]["note_statement"]["max_length"] == 10000
+
+
+@pytest.mark.asyncio
 async def test_mcp_add_memory_note_posts_expected_payload():
   def handler(request: httpx.Request) -> httpx.Response:
     assert request.method == "POST"
@@ -261,6 +289,105 @@ async def test_mcp_propose_memory_items_posts_bulk_payload():
 
   assert result.structured_content["created"] == 2
   assert len(result.structured_content["items"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_mcp_shortlist_memory_items_posts_shortlist_payload():
+  def handler(request: httpx.Request) -> httpx.Response:
+    assert request.method == "POST"
+    assert request.url.path == "/memory/candidates/shortlist"
+    return httpx.Response(
+      200,
+      json={
+        "review_session": {"id": "review-123", "label": "Interview 2026-03-13", "kind": "review"},
+        "ready_count": 1,
+        "invalid_count": 0,
+        "items": [
+          {
+            "index": 1,
+            "valid": True,
+            "candidate": {
+              "domain": "self",
+              "kind": "fact",
+              "statement": "User prefers observable architectures.",
+              "confidence": 0.8,
+              "write_mode": "create",
+            },
+            "errors": [],
+            "preview": {
+              "normalized_statement": "userprefersobservablearchitectures",
+              "write_mode": "create",
+              "will_create_status": "accepted",
+              "preview_metadata": {},
+              "review_session": {"id": "review-123", "label": "Interview 2026-03-13", "kind": "review"},
+              "dedupe_hints": [],
+              "suggested_action": None,
+              "suggested_replacement_item_id": None,
+            },
+            "dedupe_hints": [],
+          }
+        ],
+      },
+    )
+
+  server = build_mcp_server(
+    settings=Settings(),
+    client=build_rest_client(handler),
+  )
+  result = await server.call_tool(
+    "shortlist_memory_items",
+    {
+      "items": [
+        {
+          "domain": "self",
+          "kind": "fact",
+          "statement": "User prefers observable architectures.",
+          "confidence": 0.8,
+        }
+      ],
+      "review_session_label": "Interview 2026-03-13",
+    },
+  )
+
+  assert result.structured_content["review_session"]["id"] == "review-123"
+  assert result.structured_content["ready_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_mcp_list_review_sessions_reads_grouped_sessions():
+  def handler(request: httpx.Request) -> httpx.Response:
+    assert request.method == "GET"
+    assert request.url.path == "/memory/review-sessions"
+    return httpx.Response(
+      200,
+      json={
+        "items": [
+          {
+            "review_session": {
+              "id": "interview-123",
+              "label": "Interview 2026-03-13",
+              "kind": "interview",
+              "created_by": "mcp_server",
+            },
+            "candidate_count": 4,
+            "pending_count": 3,
+            "accepted_count": 1,
+            "rejected_count": 0,
+            "superseded_count": 0,
+            "latest_created_at": "2026-03-13T08:00:00Z",
+          }
+        ]
+      },
+    )
+
+  server = build_mcp_server(
+    settings=Settings(),
+    client=build_rest_client(handler),
+  )
+  result = await server.call_tool("list_review_sessions", {})
+
+  assert result.structured_content["items"][0]["review_session"]["kind"] == "interview"
+  assert result.structured_content["items"][0]["pending_count"] == 3
 
 
 @pytest.mark.asyncio

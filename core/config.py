@@ -5,7 +5,14 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ALLOWED_DOMAINS = ("self", "project", "operational", "interaction")
 ALLOWED_KINDS = ("raw", "fact", "reflection", "summary", "note", "decision", "task", "tension")
-CANDIDATE_STATUSES = ("pending", "accepted", "rejected")
+CANDIDATE_STATUSES = ("pending", "accepted", "rejected", "superseded")
+MEMORY_ITEM_STATUSES = ("accepted", "superseded")
+ALLOWED_CANDIDATE_WRITE_MODES = ("create", "upsert")
+CONFIDENCE_ALIASES = {
+  "low": 0.35,
+  "medium": 0.65,
+  "high": 0.9,
+}
 
 MEMORY_STATEMENT_MIN_LENGTH = 1
 MEMORY_CONFIDENCE_MIN = 0.0
@@ -17,8 +24,12 @@ QUERY_TOP_K_MAX = 50
 
 CANDIDATE_STATEMENT_MIN_LENGTH = 10
 CANDIDATE_STATEMENT_MAX_LENGTH = 500
-NOTE_STATEMENT_MAX_LENGTH = 10_000
+NOTE_STATEMENT_MAX_LENGTH = 50_000
 CANDIDATE_AGENT_ID_MAX_LENGTH = 64
+SOURCE_EXCERPT_MAX_LENGTH = 2_000
+REVIEW_SESSION_ID_MAX_LENGTH = 128
+REVIEW_SESSION_LABEL_MAX_LENGTH = 200
+EVIDENCE_REF_MAX_LENGTH = 200
 
 DOMAIN_COLLECTIONS = {
   "self": "mnemos_self",
