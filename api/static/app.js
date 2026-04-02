@@ -378,7 +378,7 @@ function setLanguage(lang, {persist = true} = {}) {
 
 function applyTranslations() {
   document.querySelectorAll("[data-i18n]").forEach((node) => {
-    node.textContent = t(node.dataset.i18n);
+    setTranslatedText(node, t(node.dataset.i18n));
   });
   document.querySelectorAll("[data-i18n-placeholder]").forEach((node) => {
     node.placeholder = t(node.dataset.i18nPlaceholder);
@@ -386,6 +386,21 @@ function applyTranslations() {
   document.querySelectorAll("[data-i18n-aria-label]").forEach((node) => {
     node.setAttribute("aria-label", t(node.dataset.i18nAriaLabel));
   });
+}
+
+function setTranslatedText(node, text) {
+  if (!node.children.length) {
+    node.textContent = text;
+    return;
+  }
+
+  const prefix = `${text} `;
+  if (node.firstChild?.nodeType === Node.TEXT_NODE) {
+    node.firstChild.textContent = prefix;
+    return;
+  }
+
+  node.insertBefore(document.createTextNode(prefix), node.firstChild);
 }
 
 function activatePanel(name) {
