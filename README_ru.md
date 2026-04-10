@@ -26,6 +26,7 @@ governance, прежде чем она попадёт в accepted memory.
   OpenAI-compatible LLM.
 - Построение `reflection` items из принятых facts со связями на
   evidence.
+- Построение `wiki` pages из принятых facts и reflections.
 - Создание agent-generated memory как candidates с review перед merge.
 - Preview, shortlist и bulk propose для interview-style workflow.
 - Review sessions, provenance (`source_note_id`, `evidence_ref`) и
@@ -42,13 +43,17 @@ governance, прежде чем она попадёт в accepted memory.
 - `index.md` — главная страница проекта
 - `about.md` — описание проекта
 - `guide.md` — руководство пользователя
-- `install.md` — установка на macOS с Docker Desktop
+- `install.md` — установка через Docker на поддерживаемой платформе
 - `faq.md` — частые вопросы
+- `wiki.md` — wiki-генерация из facts и reflections
 
 Папка `docs/` используется для технической документации, спецификаций и
 внутренних заметок по реализации.
 
 ## Быстрый старт
+
+Этот быстрый старт относится к разработке в репозитории. Если нужен
+пользовательский запуск через Docker, используйте `install.md`.
 
 ### 1. Подготовь окружение
 
@@ -80,6 +85,17 @@ curl http://localhost:8000/metrics
 ```sh
 make smoke
 ```
+
+### 5. Построй wiki
+
+Если нужен читаемый слой знаний поверх facts и reflections, запусти:
+
+```sh
+mnemos wiki build
+```
+
+Команда читает настроенную wiki schema, собирает подходящие facts и
+reflections и записывает markdown pages в wiki output directory.
 
 ## Базовое использование
 
@@ -309,6 +325,25 @@ Runner:
 - вызывает reflection LLM client
 - сохраняет reflections и supporting relations
 - индексирует reflections в Qdrant
+
+### Wiki Generation
+
+Wiki generation превращает принятые facts и reflections в human-readable
+markdown pages.
+
+Команда:
+
+```sh
+mnemos wiki build
+```
+
+Runner:
+
+- загружает accepted `fact` и `reflection` items
+- фильтрует их по configured wiki schema
+- пропускает pages, если source material недостаточно
+- вызывает configured wiki LLM client
+- записывает pages, index и log files в wiki output directory
 
 ### Governance
 

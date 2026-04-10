@@ -53,6 +53,12 @@ From longer texts, the system can derive short factual statements.
 
 From several facts, the system can assemble a broader pattern.
 
+### Build wiki pages
+
+Mnemos can synthesize human-readable wiki pages from facts and
+reflections. This turns accumulated memory into connected documentation
+that is easy to read and update.
+
 ### Review new knowledge
 
 If an agent proposes a new record, it can first enter a review queue and
@@ -79,6 +85,8 @@ Shortlist helps you see:
 1. Those facts can be checked through shortlist before writing.
 1. Candidates then enter a review session.
 1. After acceptance they become long-term memory.
+1. Facts and reflections can then be compiled into wiki pages with
+   `mnemos wiki build`.
 1. If a new fact refines an older one, `upsert` can mark the old record as `superseded`.
 
 This matters because Mnemos does not mix raw data, conclusions, and
@@ -159,6 +167,8 @@ good workflow is:
 1. run shortlist before writing
 1. inspect duplicates and provenance
 1. send confirmed candidates into a review session
+1. run `mnemos wiki build` to turn verified facts and reflections into
+   a readable wiki page
 1. use `upsert` when a new fact should replace an older profile fact
 
 ## Which skill to use

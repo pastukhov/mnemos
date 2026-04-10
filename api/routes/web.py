@@ -16,7 +16,7 @@ from api.schemas import (
   WebListItemsResponse,
   WebOverviewResponse,
 )
-from core.config import ALLOWED_DOMAINS
+from core.config import ALLOWED_DOMAINS, get_settings
 from services.memory_governance_service import MemoryGovernanceService
 from services.memory_service import MemoryService
 from services.user_import_service import UserImportService
@@ -48,6 +48,7 @@ def web_overview(
   governance_service: MemoryGovernanceService = Depends(get_checked_governance_service),
   memory_service: MemoryService = Depends(get_checked_memory_service),
 ) -> WebOverviewResponse:
+  settings = get_settings()
   postgres_status = "ok"
   qdrant_status = "ok"
   try:
@@ -65,6 +66,14 @@ def web_overview(
     WebDomainSummary(domain=domain, items_total=len(memory_service.list_items_by_domain(domain)))
     for domain in ALLOWED_DOMAINS
   ]
+  wiki_output_dir = Path(settings.wiki_output_dir)
+  wiki_pages_total = 0
+  if wiki_output_dir.exists():
+    wiki_pages_total = sum(
+      1
+      for path in wiki_output_dir.glob("*.md")
+      if path.name not in {"index.md", "log.md"}
+    )
   pending_candidates = len(governance_service.list_candidates(status="pending"))
   overall = "ready" if postgres_status == "ok" and qdrant_status == "ok" else "degraded"
   return WebOverviewResponse(
@@ -77,6 +86,7 @@ def web_overview(
       "ручное добавление записей",
       "импорт текста и файлов",
       "review кандидатов",
+      f"wiki_pages:{wiki_pages_total}",
     ],
   )
 
@@ -182,6 +192,10 @@ def build_shell(*, initial_lang: str | None = None) -> str:
         <div class="status-card__row">
           <span data-i18n="status.pending_candidates">Кандидаты на проверку</span>
           <strong id="overview-candidates">0</strong>
+        </div>
+        <div class="status-card__row">
+          <span data-i18n="overview.wiki_label">Wiki</span>
+          <strong id="overview-wiki" data-i18n="overview.wiki_loading">Загрузка...</strong>
         </div>
       </aside>
     </header>
@@ -359,11 +373,20 @@ def build_shell(*, initial_lang: str | None = None) -> str:
       </section>
 
       <section class="panel" data-panel="help">
-        <div class="grid grid--two">
+        <div class="grid grid--three">
           <article class="card">
             <h2 data-i18n="help.what_is.title">Что такое Mnemos</h2>
             <p data-i18n="help.what_is.p1">Mnemos собирает заметки, позволяет искать их по смыслу и постепенно превращает исходные тексты в более удобные знания.</p>
             <p data-i18n="help.what_is.p2">Если коротко: вы сохраняете записи, а система помогает их не потерять и сделать полезнее.</p>
+          </article>
+          <article class="card">
+            <h2 data-i18n="help.flow.title">Как проходит путь памяти</h2>
+            <ul class="plain-list">
+              <li data-i18n="help.flow.step_1">Сырые записи сохраняются как notes или raw.</li>
+              <li data-i18n="help.flow.step_2">Из них извлекаются facts и reflections.</li>
+              <li data-i18n="help.flow.step_3">Команда `mnemos wiki build` собирает wiki-страницы.</li>
+              <li data-i18n="help.flow.step_4">Проверяйте кандидатов, если хотите принять новые знания вручную.</li>
+            </ul>
           </article>
           <article class="card">
             <h2 data-i18n="help.next_steps.title">Куда идти дальше</h2>
@@ -371,6 +394,7 @@ def build_shell(*, initial_lang: str | None = None) -> str:
               <li data-i18n="help.next_steps.step_1">Начните с вкладки «Добавить», чтобы сохранить первую запись.</li>
               <li data-i18n="help.next_steps.step_2">Используйте вкладку «Импорт», если у вас уже есть заметки или экспорт диалога.</li>
               <li data-i18n="help.next_steps.step_3">Открывайте вкладку «Проверка», когда система предлагает новые кандидаты.</li>
+              <li data-i18n="help.next_steps.step_4">Запускайте wiki build, когда хотите превратить факты в читаемую документацию.</li>
             </ul>
           </article>
         </div>
