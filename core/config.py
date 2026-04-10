@@ -116,6 +116,41 @@ class Settings(BaseSettings):
   )
   reflection_min_chars: int = Field(default=20, validation_alias="REFLECTION_MIN_CHARS")
   reflection_max_chars: int = Field(default=300, validation_alias="REFLECTION_MAX_CHARS")
+  wiki_output_dir: str = Field(default="data/wiki", validation_alias="WIKI_OUTPUT_DIR")
+  wiki_schema_path: str = Field(
+    default="data/wiki_schema.yaml",
+    validation_alias="WIKI_SCHEMA_PATH",
+  )
+  wiki_llm_timeout_seconds: float = Field(
+    default=20.0,
+    validation_alias="WIKI_LLM_TIMEOUT_SECONDS",
+  )
+  wiki_max_page_chars: int = Field(
+    default=5000,
+    validation_alias="WIKI_MAX_PAGE_CHARS",
+  )
+  wiki_min_facts_per_page: int = Field(
+    default=3,
+    validation_alias="WIKI_MIN_FACTS_PER_PAGE",
+  )
+
+  @computed_field
+  @property
+  def wiki_llm_model(self) -> str:
+    """Default to reflection LLM model for wiki"""
+    return self.reflection_llm_model
+
+  @computed_field
+  @property
+  def wiki_llm_base_url(self) -> str | None:
+    """Default to reflection LLM base URL for wiki"""
+    return self.reflection_llm_base_url
+
+  @computed_field
+  @property
+  def wiki_llm_api_key(self) -> str | None:
+    """Default to reflection LLM API key for wiki"""
+    return self.reflection_llm_api_key
 
   @computed_field
   @property
