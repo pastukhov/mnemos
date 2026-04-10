@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -13,6 +14,8 @@ from pipelines.wiki.build_page import (
     read_existing_page,
     write_wiki_page,
 )
+from pipelines.wiki.generate_index import generate_index
+from pipelines.wiki.generate_log import generate_log
 from pipelines.wiki.wiki_llm_client import WikiLLMClient
 from pipelines.wiki.wiki_schema import WikiPageDefinition, WikiSchema
 from services.memory_service import MemoryService
@@ -120,6 +123,40 @@ class WikiBuildRunner:
 
             # Build the page
             self._build_page(page_def, output_dir, report, domain)
+
+        # Generate index.md
+        try:
+            index_content = generate_index(self.settings.wiki_output_dir, self.schema)
+            self._write_file(
+                os.path.join(self.settings.wiki_output_dir, "index.md"),
+                index_content,
+            )
+            logger.info(
+                "wiki index generated",
+                extra={"event": "wiki_index_written"},
+            )
+        except Exception:
+            logger.exception(
+                "failed to generate wiki index",
+                extra={"event": "wiki_index_generation_failed"},
+            )
+
+        # Generate log.md
+        try:
+            log_content = generate_log(self.memory_service, self.settings.wiki_output_dir)
+            self._write_file(
+                os.path.join(self.settings.wiki_output_dir, "log.md"),
+                log_content,
+            )
+            logger.info(
+                "wiki log generated",
+                extra={"event": "wiki_log_written"},
+            )
+        except Exception:
+            logger.exception(
+                "failed to generate wiki log",
+                extra={"event": "wiki_log_generation_failed"},
+            )
 
         logger.info(
             "wiki build completed",
@@ -302,3 +339,14 @@ class WikiBuildRunner:
                     reflections_list.extend(item_statements)
 
         return facts_list, reflections_list
+
+    def _write_file(self, path: str, content: str) -> None:
+        """Write file to disk, creating parent directories as needed.
+
+        Args:
+            path: File path to write to
+            content: File content
+        """
+        file_path = Path(path)
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        file_path.write_text(content, encoding="utf-8")
