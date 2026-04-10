@@ -18,6 +18,7 @@ between your data and your AI tools.
 
 - [What it is](/mnemos/en/about/)
 - [User guide](/mnemos/en/guide/)
+- [Wiki](/mnemos/en/wiki/)
 - [Install with Docker](/mnemos/en/install/)
 
 > Open source. FastAPI + PostgreSQL + Qdrant + MCP.
@@ -38,6 +39,7 @@ Mnemos exists so that:
 - new knowledge goes through review instead of chaotic writes
 - long interviews can be preserved as notes without fragile limits
 - similar facts can be checked through shortlist before writing
+- knowledge can be turned into readable wiki pages
 - memory can be connected to agents, not just read manually
 
 ---
@@ -48,6 +50,7 @@ Mnemos exists so that:
 1. Mnemos stores long notes as source material.
 1. The system can build a shortlist of candidate facts without writing them.
 1. Review sessions let you inspect candidates as a batch.
+1. Mnemos can build wiki pages from facts and reflections.
 1. AI receives the needed context through API or MCP.
 
 [More about how Mnemos works](/mnemos/en/about/#how-it-works)

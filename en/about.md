@@ -91,6 +91,12 @@ show which note and source excerpt a fact came from.
 
 The system can derive more durable knowledge from raw notes.
 
+### Wiki pages from facts and reflections
+
+On top of individual records, Mnemos can assemble coherent markdown wiki
+pages. That makes memory useful not only for search and retrieval, but
+also readable for humans as living documentation.
+
 ### Integration with AI agents
 
 Mnemos connects to agents and applications through REST API and MCP.
@@ -99,12 +105,34 @@ Mnemos connects to agents and applications through REST API and MCP.
 
 ## How it works
 
+```text
+Source material
+notes / raw
+    |
+    v
+Extracted knowledge
+facts + reflections
+    |
+    v
+Wiki layer
+markdown pages / index / log
+
+PostgreSQL -> source of truth
+Qdrant -> semantic retrieval
+LLM -> facts / reflections / wiki synthesis
+MCP + REST -> access for agents and applications
+```
+
 1. **Load your source material**  
    That can be notes, questionnaires, text files, or manual entries.
 
 1. **Mnemos turns it into memory**  
    The system stores notes, extracts facts, and builds links across notes,
    facts, and reflections.
+
+1. **Mnemos can build wiki pages**  
+   From facts and reflections, the system can build readable markdown
+   pages that summarize a topic or domain.
 
 1. **AI reads memory during work**  
    When an agent needs context, Mnemos returns relevant records in a
@@ -123,6 +151,7 @@ Mnemos connects to agents and applications through REST API and MCP.
 - important decisions and agreements
 - verified facts derived from notes
 - reflections built from multiple facts
+- wiki pages assembled from facts and reflections
 - pending candidates waiting for review
 - superseded records replaced by a newer fact
 
@@ -166,3 +195,12 @@ agent uses the endpoint through the correct workflow.
 ```sh
 npx skills add https://github.com/pastukhov/mnemos --skill mnemos-memory
 ```
+
+---
+
+## Where to find frequent questions
+
+The practical Q and A lives on the dedicated FAQ page. That is easier to
+maintain than repeating the same answers inside the project overview.
+
+- [Open FAQ](/mnemos/en/faq/)

@@ -26,6 +26,7 @@ Project site: `https://pastukhov.github.io/mnemos`
 - Extract `fact` items from accepted `raw` items with an
   OpenAI-compatible LLM.
 - Build `reflection` items from accepted facts with evidence links.
+- Build `wiki` pages from accepted facts and reflections.
 - Propose agent-generated memory as candidates and review it before
   merging.
 - Preview and shortlist candidates before write for interview-heavy
@@ -37,6 +38,9 @@ Project site: `https://pastukhov.github.io/mnemos`
   suite.
 
 ## Quick Start
+
+This quick start is for repository development. If you only want a user
+installation with Docker, use the site guide in `install.md`.
 
 ### 1. Prepare the environment
 
@@ -68,6 +72,19 @@ curl http://localhost:8000/metrics
 ```sh
 make smoke
 ```
+
+### 5. Build the wiki
+
+When you want a readable knowledge layer on top of facts and
+reflections, run:
+
+```sh
+mnemos wiki build
+```
+
+The command reads the configured wiki schema, gathers the matching
+facts and reflections, and writes markdown pages into the wiki output
+directory.
 
 ## Basic Usage
 
@@ -296,6 +313,25 @@ The runner:
 - calls the configured reflection LLM client
 - stores reflections and supporting relations
 - indexes reflections in Qdrant
+
+### Wiki Generation
+
+Wiki generation turns accepted facts and reflections into human-readable
+markdown pages.
+
+Command:
+
+```sh
+mnemos wiki build
+```
+
+The runner:
+
+- loads accepted `fact` and `reflection` items
+- filters them by the configured wiki schema
+- skips pages that do not have enough source material
+- calls the configured wiki LLM client
+- writes pages, index, and log files into the wiki output directory
 
 ### Governance
 

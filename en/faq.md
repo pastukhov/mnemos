@@ -48,6 +48,22 @@ own environment.
 Yes. That is what candidates, preview/validate, shortlist, and review
 workflow are for.
 
+## What is Wiki in Mnemos
+
+It is a layer of readable markdown pages that Mnemos assembles from
+facts and reflections. It lets you read memory as documentation, not
+just search it.
+
+## Where are wiki pages stored
+
+By default, they are written to `data/wiki`. You can change that with
+`WIKI_OUTPUT_DIR`, and `WIKI_SCHEMA_PATH` defines the page structure.
+
+## Do I need an LLM for Wiki
+
+Yes, for generating and updating wiki pages. No, for reading pages that
+have already been generated.
+
 ## What is the difference between a note and a fact
 
 `note` is raw material: a long answer, draft, quote, or working note.

@@ -16,6 +16,11 @@ const translations = {
       failed: "Ошибка",
       pending_candidates: "Кандидаты на проверку",
     },
+    overview: {
+      wiki_label: "Wiki",
+      wiki_loading: "Загрузка...",
+      wiki_summary: "Страниц wiki: {count}",
+    },
     nav: {
       home: "Главная",
       search: "Поиск",
@@ -144,11 +149,19 @@ const translations = {
         p1: "Mnemos собирает заметки, позволяет искать их по смыслу и постепенно превращает исходные тексты в более удобные знания.",
         p2: "Если коротко: вы сохраняете записи, а система помогает их не потерять и сделать полезнее.",
       },
+      flow: {
+        title: "Как проходит путь памяти",
+        step_1: "Сырые записи сохраняются как notes или raw.",
+        step_2: "Из них извлекаются facts и reflections.",
+        step_3: "Команда `mnemos wiki build` собирает wiki-страницы.",
+        step_4: "Проверяйте кандидатов, если хотите принять новые знания вручную.",
+      },
       next_steps: {
         title: "Куда идти дальше",
         step_1: "Начните с вкладки «Добавить», чтобы сохранить первую запись.",
         step_2: "Используйте вкладку «Импорт», если у вас уже есть заметки или экспорт диалога.",
         step_3: "Открывайте вкладку «Проверка», когда система предлагает новые кандидаты.",
+        step_4: "Запускайте wiki build, когда хотите превратить факты в читаемую документацию.",
       },
     },
     common: {
@@ -173,6 +186,11 @@ const translations = {
       ok: "Ready",
       failed: "Failed",
       pending_candidates: "Pending candidates",
+    },
+    overview: {
+      wiki_label: "Wiki",
+      wiki_loading: "Loading...",
+      wiki_summary: "Wiki pages: {count}",
     },
     nav: {
       home: "Home",
@@ -302,11 +320,19 @@ const translations = {
         p1: "Mnemos collects notes, lets you search them semantically, and gradually turns source text into more useful knowledge.",
         p2: "In short: you save records, and the system helps you keep them and make them more useful.",
       },
+      flow: {
+        title: "How the memory flow works",
+        step_1: "Raw records are stored as notes or raw items.",
+        step_2: "Facts and reflections are extracted from them.",
+        step_3: "The `mnemos wiki build` command assembles wiki pages.",
+        step_4: "Candidates stay reviewable if you want to accept knowledge manually.",
+      },
       next_steps: {
         title: "Where to go next",
         step_1: "Start with the Add tab to save your first record.",
         step_2: "Use the Import tab if you already have notes or a chat export.",
         step_3: "Open the Review tab when the system proposes new candidates.",
+        step_4: "Run wiki build when you want facts turned into readable documentation.",
       },
     },
     common: {
@@ -419,6 +445,11 @@ async function loadOverview() {
   document.getElementById("overview-postgres").textContent = translateCheck(data.checks.postgres);
   document.getElementById("overview-qdrant").textContent = translateCheck(data.checks.qdrant);
   document.getElementById("overview-candidates").textContent = String(data.pending_candidates);
+  const wikiPagesFeature = (data.features || []).find((feature) => feature.startsWith("wiki_pages:"));
+  const wikiPagesCount = Number(wikiPagesFeature?.split(":")[1] || 0);
+  document.getElementById("overview-wiki").textContent = formatMessage("overview.wiki_summary", {
+    count: Number.isFinite(wikiPagesCount) ? wikiPagesCount : 0,
+  });
 }
 
 function translateCheck(value) {
