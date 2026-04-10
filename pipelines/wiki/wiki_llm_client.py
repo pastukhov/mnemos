@@ -9,7 +9,7 @@ import httpx
 from core.config import Settings
 from pipelines.wiki.wiki_schema import WikiPageDefinition
 
-SYSTEM_PROMPT = """You are a wiki page synthesis expert. Your task is to create cohesive, well-structured markdown content for wiki pages.
+SYSTEM_PROMPT = """You are synthesizing a wiki page from facts and reflections.
 
 Given:
 1. Page metadata (title, description)
@@ -143,6 +143,38 @@ class OpenAICompatibleWikiLLMClient(WikiLLMClient):
         self.api_key = api_key
         self.timeout_seconds = timeout_seconds
 
+    def _validate_response(self, payload: object) -> str:
+        """Validate and extract content from LLM response.
+
+        Args:
+            payload: Response payload from LLM API
+
+        Returns:
+            Extracted content string
+
+        Raises:
+            ValueError: If response structure is invalid
+        """
+        if not isinstance(payload, dict):
+            raise ValueError("LLM response must be a JSON object")
+
+        try:
+            choices = payload.get("choices")
+            if not isinstance(choices, list) or not choices:
+                raise ValueError("LLM response must contain non-empty choices list")
+
+            message = choices[0].get("message")
+            if not isinstance(message, dict):
+                raise ValueError("First choice must contain message object")
+
+            content = message.get("content")
+            if not isinstance(content, str) or not content.strip():
+                raise ValueError("Message content must be non-empty string")
+
+            return content.strip()
+        except (KeyError, TypeError, IndexError) as e:
+            raise ValueError(f"Invalid LLM response structure: {e}") from e
+
     def synthesize_page(
         self,
         page_def: WikiPageDefinition,
@@ -214,8 +246,8 @@ class OpenAICompatibleWikiLLMClient(WikiLLMClient):
         )
         response.raise_for_status()
         payload = response.json()
-        content = payload["choices"][0]["message"]["content"]
-        return content.strip()
+        content = self._validate_response(payload)
+        return content
 
 
 def build_wiki_llm_client(settings: Settings) -> WikiLLMClient:

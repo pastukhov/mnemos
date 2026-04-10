@@ -258,7 +258,7 @@ class TestOpenAICompatibleWikiLLMClient:
 
     @patch("pipelines.wiki.wiki_llm_client.httpx.post")
     def test_synthesize_page_invalid_response(self, mock_post, page_def, facts, reflections):
-        """Test error handling for invalid API response."""
+        """Test error handling for invalid API response - empty choices."""
         mock_response = MagicMock()
         mock_response.json.return_value = {"choices": []}  # Missing message
 
@@ -271,8 +271,104 @@ class TestOpenAICompatibleWikiLLMClient:
             timeout_seconds=30.0,
         )
 
-        with pytest.raises((IndexError, KeyError)):
+        with pytest.raises(ValueError, match="non-empty choices list"):
             client.synthesize_page(page_def, facts, reflections)
+
+    @patch("pipelines.wiki.wiki_llm_client.httpx.post")
+    def test_validate_response_non_dict_payload(self, mock_post, page_def, facts, reflections):
+        """Test _validate_response rejects non-dict payload."""
+        client = OpenAICompatibleWikiLLMClient(
+            model="gpt-4",
+            base_url="https://api.openai.com/v1",
+            api_key="test-key",
+            timeout_seconds=30.0,
+        )
+
+        with pytest.raises(ValueError, match="must be a JSON object"):
+            client._validate_response([])
+
+    @patch("pipelines.wiki.wiki_llm_client.httpx.post")
+    def test_validate_response_missing_choices(self, mock_post, page_def, facts, reflections):
+        """Test _validate_response rejects response without choices."""
+        client = OpenAICompatibleWikiLLMClient(
+            model="gpt-4",
+            base_url="https://api.openai.com/v1",
+            api_key="test-key",
+            timeout_seconds=30.0,
+        )
+
+        with pytest.raises(ValueError, match="non-empty choices list"):
+            client._validate_response({})
+
+    @patch("pipelines.wiki.wiki_llm_client.httpx.post")
+    def test_validate_response_missing_message(self, mock_post, page_def, facts, reflections):
+        """Test _validate_response rejects choice without message."""
+        client = OpenAICompatibleWikiLLMClient(
+            model="gpt-4",
+            base_url="https://api.openai.com/v1",
+            api_key="test-key",
+            timeout_seconds=30.0,
+        )
+
+        with pytest.raises(ValueError, match="message object"):
+            client._validate_response({"choices": [{}]})
+
+    @patch("pipelines.wiki.wiki_llm_client.httpx.post")
+    def test_validate_response_missing_content(self, mock_post, page_def, facts, reflections):
+        """Test _validate_response rejects message without content."""
+        client = OpenAICompatibleWikiLLMClient(
+            model="gpt-4",
+            base_url="https://api.openai.com/v1",
+            api_key="test-key",
+            timeout_seconds=30.0,
+        )
+
+        with pytest.raises(ValueError, match="non-empty string"):
+            client._validate_response({"choices": [{"message": {}}]})
+
+    @patch("pipelines.wiki.wiki_llm_client.httpx.post")
+    def test_validate_response_empty_content(self, mock_post, page_def, facts, reflections):
+        """Test _validate_response rejects empty content string."""
+        client = OpenAICompatibleWikiLLMClient(
+            model="gpt-4",
+            base_url="https://api.openai.com/v1",
+            api_key="test-key",
+            timeout_seconds=30.0,
+        )
+
+        with pytest.raises(ValueError, match="non-empty string"):
+            client._validate_response({"choices": [{"message": {"content": ""}}]})
+
+    @patch("pipelines.wiki.wiki_llm_client.httpx.post")
+    def test_validate_response_whitespace_only(self, mock_post, page_def, facts, reflections):
+        """Test _validate_response rejects whitespace-only content."""
+        client = OpenAICompatibleWikiLLMClient(
+            model="gpt-4",
+            base_url="https://api.openai.com/v1",
+            api_key="test-key",
+            timeout_seconds=30.0,
+        )
+
+        with pytest.raises(ValueError, match="non-empty string"):
+            client._validate_response({"choices": [{"message": {"content": "   "}}]})
+
+    @patch("pipelines.wiki.wiki_llm_client.httpx.post")
+    def test_validate_response_valid_payload(self, mock_post, page_def, facts, reflections):
+        """Test _validate_response extracts content from valid payload."""
+        client = OpenAICompatibleWikiLLMClient(
+            model="gpt-4",
+            base_url="https://api.openai.com/v1",
+            api_key="test-key",
+            timeout_seconds=30.0,
+        )
+
+        payload = {"choices": [{"message": {"content": "  # Title\n\nContent  "}}]}
+        result = client._validate_response(payload)
+
+        # Should strip whitespace
+        assert result == "# Title\n\nContent"
+        assert not result.startswith(" ")
+        assert not result.endswith(" ")
 
     @patch("pipelines.wiki.wiki_llm_client.httpx.post")
     def test_user_message_includes_facts_and_reflections(self, mock_post, page_def, facts, reflections):
