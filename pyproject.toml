@@ -50,6 +50,7 @@ packages = [
   "pipelines.governance",
   "pipelines.ingest",
   "pipelines.reflect",
+  "pipelines.wiki",
   "services",
   "vector",
 ]

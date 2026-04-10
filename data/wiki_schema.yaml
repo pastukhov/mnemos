@@ -1,0 +1,38 @@
+output_dir: data/wiki
+default_domain: self
+
+pages:
+  - name: career
+    title: Карьера и навыки
+    description: Профессиональный опыт, навыки, компетенции
+    domains: [self]
+    kinds: [fact, reflection]
+    themes: []
+
+  - name: values
+    title: Ценности и мотивация
+    description: Что движет тобой, какие ценности неприкосновенны
+    domains: [self]
+    kinds: [reflection]
+    themes: [motivation, values]
+
+  - name: workstyle
+    title: Рабочий стиль и предпочтения
+    description: Как ты работаешь лучше всего, твои предпочтения
+    domains: [self]
+    kinds: [fact, reflection]
+    themes: [work_style]
+
+  - name: goals
+    title: Цели и планы
+    description: Краткосрочные и долгосрочные цели, планы развития
+    domains: [self]
+    kinds: [decision, task]
+    themes: []
+
+  - name: decisions
+    title: Ключевые решения
+    description: Важные решения, которые определили текущий путь
+    domains: [self, project]
+    kinds: [decision]
+    themes: []

@@ -11,6 +11,8 @@ from pipelines.governance.candidate_runner import CandidateRunner
 from pipelines.ingest.ingest_runner import IngestRunner
 from pipelines.reflect.reflection_llm_client import build_reflection_llm_client
 from pipelines.reflect.reflection_runner import ReflectionRunner
+from pipelines.wiki.wiki_llm_client import build_wiki_llm_client
+from pipelines.wiki.wiki_runner import WikiBuildRunner
 from services.memory_governance_service import MemoryGovernanceService
 from services.memory_service import MemoryService
 from vector.qdrant_client import MnemosQdrantClient
@@ -62,6 +64,22 @@ def build_parser() -> argparse.ArgumentParser:
   )
   mcp_parser.add_argument("--host", default=None)
   mcp_parser.add_argument("--port", type=int, default=None)
+
+  wiki_parser = subparsers.add_parser("wiki")
+  wiki_subparsers = wiki_parser.add_subparsers(dest="wiki_target", required=True)
+
+  wiki_build_parser = wiki_subparsers.add_parser("build")
+  wiki_build_parser.add_argument("--domain", default=None)
+  wiki_build_parser.add_argument("--page", default=None)
+
+  wiki_lint_parser = wiki_subparsers.add_parser("lint")
+  wiki_lint_parser.add_argument("--domain", default=None)
+  wiki_lint_parser.add_argument("--fix", action="store_true", default=False)
+
+  wiki_query_parser = wiki_subparsers.add_parser("query")
+  wiki_query_parser.add_argument("question")
+  wiki_query_parser.add_argument("--domain", default=None)
+
   return parser
 
 
@@ -191,6 +209,45 @@ def run_candidates_command(args, parser, settings) -> int:
   return 1
 
 
+def run_wiki_build_command(args, parser, settings) -> int:
+  """
+  Build wiki pages from facts and reflections.
+
+  Uses the configured wiki schema to generate markdown pages.
+  """
+  engine = create_engine(settings.postgres_dsn)
+  session_factory = create_session_factory(engine)
+  qdrant = MnemosQdrantClient(
+    url=settings.qdrant_url,
+    vector_size=settings.qdrant_vector_size,
+    timeout_seconds=settings.qdrant_timeout_seconds,
+  )
+  embedder = build_embedder(settings)
+  memory_service = MemoryService(session_factory, qdrant, embedder, settings)
+  llm_client = build_wiki_llm_client(settings)
+  runner = WikiBuildRunner(memory_service, llm_client, settings)
+
+  report = runner.run(domain=args.domain, page_name=args.page)
+  print(report.render())
+  return 0
+
+
+def run_wiki_lint_command(args, parser, settings) -> int:
+  """
+  Check wiki for integrity issues (placeholder for Phase 7.6).
+  """
+  print("Wiki lint not yet implemented. Scheduled for Phase 7.6")
+  return 0
+
+
+def run_wiki_query_command(args, parser, settings) -> int:
+  """
+  Query wiki with natural language question (placeholder for Phase 7.7).
+  """
+  print("Wiki query not yet implemented. Scheduled for Phase 7.7")
+  return 0
+
+
 def main() -> int:
   parser = build_parser()
   args = parser.parse_args()
@@ -208,6 +265,16 @@ def main() -> int:
 
   if args.command == "candidates":
     return run_candidates_command(args, parser, settings)
+
+  if args.command == "wiki":
+    if args.wiki_target == "build":
+      return run_wiki_build_command(args, parser, settings)
+    if args.wiki_target == "lint":
+      return run_wiki_lint_command(args, parser, settings)
+    if args.wiki_target == "query":
+      return run_wiki_query_command(args, parser, settings)
+    parser.error(f"unsupported wiki target: {args.wiki_target}")
+    return 1
 
   if args.command == "mcp-server":
     run_mcp_server(
