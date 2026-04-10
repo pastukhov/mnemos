@@ -210,6 +210,11 @@ def run_candidates_command(args, parser, settings) -> int:
 
 
 def run_wiki_build_command(args, parser, settings) -> int:
+  """
+  Build wiki pages from facts and reflections.
+
+  Uses the configured wiki schema to generate markdown pages.
+  """
   engine = create_engine(settings.postgres_dsn)
   session_factory = create_session_factory(engine)
   qdrant = MnemosQdrantClient(
@@ -228,11 +233,17 @@ def run_wiki_build_command(args, parser, settings) -> int:
 
 
 def run_wiki_lint_command(args, parser, settings) -> int:
+  """
+  Check wiki for integrity issues (placeholder for Phase 7.6).
+  """
   print("Wiki lint not yet implemented. Scheduled for Phase 7.6")
   return 0
 
 
 def run_wiki_query_command(args, parser, settings) -> int:
+  """
+  Query wiki with natural language question (placeholder for Phase 7.7).
+  """
   print("Wiki query not yet implemented. Scheduled for Phase 7.7")
   return 0
 
