@@ -486,3 +486,43 @@ def test_wiki_build_skipped_page_not_counted_toward_fingerprint_check(client, tm
     report2 = runner.run()
     assert report2.pages_built == 1
     assert (tmp_path / "insufficient.md").exists()
+
+
+def test_wiki_build_respects_configurable_kind_mappings(client, tmp_path):
+    """Test that kind mappings can be configured via settings."""
+    # Create items with different kinds
+    _create_item(client, domain="self", kind="fact", statement="Regular fact")
+    _create_item(client, domain="self", kind="tension", statement="Tension item")
+    _create_item(client, domain="self", kind="reflection", statement="Regular reflection")
+
+    wiki_schema = WikiSchema(
+        pages=[
+            WikiPageDefinition(
+                name="custom",
+                title="Custom Kinds",
+                description="Testing custom kind mappings",
+                domains=["self"],
+                kinds=["fact", "tension", "reflection"],
+            ),
+        ],
+        output_dir=str(tmp_path),
+    )
+
+    llm_client = FakeWikiLLMClient()
+    settings = client.app.state.settings
+    settings.wiki_output_dir = str(tmp_path)
+    settings.wiki_min_facts_per_page = 1
+    # Configure tension as a facts kind (instead of default mapping)
+    settings.wiki_facts_kinds = ["fact", "tension"]
+    settings.wiki_reflections_kinds = ["reflection"]
+
+    runner = WikiBuildRunner(client.app.state.memory_service, llm_client, settings)
+    runner.schema = wiki_schema
+
+    report = runner.run()
+
+    assert report.pages_built == 1
+
+    # Verify both fact and tension were treated as facts
+    assert llm_client.synthesized_pages[0]["facts_count"] == 2
+    assert llm_client.synthesized_pages[0]["reflections_count"] == 1

@@ -53,6 +53,8 @@ def read_existing_page(page_path: Path) -> tuple[str, str | None]:
         fingerprint = frontmatter.get("source_fingerprint") if frontmatter else None
         return content, fingerprint
     except Exception:
+        # Log the error but gracefully continue
+        # (YAML parse errors are acceptable - frontmatter might be malformed)
         return content, None
 
 

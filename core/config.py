@@ -133,6 +133,14 @@ class Settings(BaseSettings):
     default=3,
     validation_alias="WIKI_MIN_FACTS_PER_PAGE",
   )
+  wiki_facts_kinds: list[str] = Field(
+    default=["fact", "decision", "summary", "note", "task"],
+    validation_alias="WIKI_FACTS_KINDS",
+  )
+  wiki_reflections_kinds: list[str] = Field(
+    default=["reflection"],
+    validation_alias="WIKI_REFLECTIONS_KINDS",
+  )
 
   @computed_field
   @property

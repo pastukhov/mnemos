@@ -14,7 +14,7 @@ from pipelines.wiki.build_page import (
     write_wiki_page,
 )
 from pipelines.wiki.wiki_llm_client import WikiLLMClient
-from pipelines.wiki.wiki_schema import WikiSchema
+from pipelines.wiki.wiki_schema import WikiPageDefinition, WikiSchema
 from services.memory_service import MemoryService
 
 logger = get_logger(__name__)
@@ -136,7 +136,7 @@ class WikiBuildRunner:
 
     def _build_page(
         self,
-        page_def,
+        page_def: WikiPageDefinition,
         output_dir: Path,
         report: WikiBuildReport,
         domain_filter: str | None = None,
@@ -254,7 +254,7 @@ class WikiBuildRunner:
 
     def _load_items_for_page(
         self,
-        page_def,
+        page_def: WikiPageDefinition,
         domain_filter: str | None = None,
     ) -> tuple[list[str], list[str]]:
         """Load facts and reflections for a page definition.
@@ -296,9 +296,9 @@ class WikiBuildRunner:
                 # Collect items as strings
                 item_statements = [item.statement for item in items]
 
-                if kind in ("fact", "decision", "summary", "note", "task"):
+                if kind in self.settings.wiki_facts_kinds:
                     facts_list.extend(item_statements)
-                elif kind in ("reflection",):
+                elif kind in self.settings.wiki_reflections_kinds:
                     reflections_list.extend(item_statements)
 
         return facts_list, reflections_list
