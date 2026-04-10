@@ -4,6 +4,7 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Any
 
+from core.config import ALLOWED_DOMAINS
 from core.logging import get_logger
 from services.memory_service import MemoryService
 
@@ -25,8 +26,8 @@ def generate_log(memory_service: MemoryService, wiki_dir: str) -> str:
     """
     items: list[dict[str, Any]] = []
 
-    # Load items from multiple domains (self, project)
-    for domain in ["self", "project"]:
+    # Load items from all allowed domains
+    for domain in ALLOWED_DOMAINS:
         try:
             domain_items = memory_service.list_items_by_domain_kind(
                 domain=domain,
