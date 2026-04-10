@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -31,7 +32,7 @@ def generate_index(wiki_dir: str, schema: WikiSchema) -> str:
     md_files = [f for f in md_files if f.name not in ("index.md", "log.md")]
 
     # Parse frontmatter and extract metadata
-    pages_data = []
+    pages_data: list[dict[str, Any]] = []
 
     for page_file in md_files:
         try:

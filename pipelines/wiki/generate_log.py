@@ -2,6 +2,7 @@
 
 from collections import defaultdict
 from datetime import datetime
+from typing import Any
 
 from core.logging import get_logger
 from services.memory_service import MemoryService
@@ -22,85 +23,67 @@ def generate_log(memory_service: MemoryService, wiki_dir: str) -> str:
     Returns:
         Markdown string with log content (not written to disk)
     """
-    items = []
+    items: list[dict[str, Any]] = []
 
-    # Try to load raw items from self domain (most common case)
-    try:
-        items.extend(
-            memory_service.list_items_by_domain_kind(
-                domain="self",
+    # Load items from multiple domains (self, project)
+    for domain in ["self", "project"]:
+        try:
+            domain_items = memory_service.list_items_by_domain_kind(
+                domain=domain,
                 kind="raw",
             )
-        )
-    except Exception as e:
-        logger.warning(
-            "failed to load raw items from self domain",
-            extra={
-                "event": "wiki_log_load_error",
-                "domain": "self",
-                "error": str(e),
-            },
-        )
-
-    # Try to load from project domain as well
-    try:
-        items.extend(
-            memory_service.list_items_by_domain_kind(
-                domain="project",
-                kind="raw",
+            for item in domain_items:
+                items.append({
+                    "created_at": item.created_at,
+                    "source_type": item.metadata_json.get("source_type", "unknown") if item.metadata_json else "unknown",
+                    "statement": item.statement,
+                })
+        except Exception as e:
+            logger.warning(
+                "Failed to load items for domain",
+                extra={
+                    "event": "wiki_log_load_error",
+                    "domain": domain,
+                    "error": str(e),
+                },
             )
-        )
-    except Exception as e:
-        logger.warning(
-            "failed to load raw items from project domain",
-            extra={
-                "event": "wiki_log_load_error",
-                "domain": "project",
-                "error": str(e),
-            },
-        )
+            # Continue with empty list for this domain
 
     # Sort by created_at (newest first)
     items_sorted = sorted(
         items,
-        key=lambda x: x.created_at if x.created_at else datetime.min,
+        key=lambda x: x["created_at"] if x["created_at"] else datetime.min,
         reverse=True,
     )
 
     # Group by date
-    items_by_date = defaultdict(list)
+    items_by_date: defaultdict[str, list[dict[str, Any]]] = defaultdict(list)
 
     for item in items_sorted:
         try:
-            # Get source type from metadata
-            source_type = "unknown"
-            if item.metadata_json:
-                source_type = item.metadata_json.get("source_type", "unknown")
-
             # Truncate statement to 80 characters
-            statement = item.statement
+            statement = item["statement"]
             if len(statement) > 80:
                 statement = statement[:77] + "..."
 
             # Format date key (YYYY-MM-DD)
-            if item.created_at:
-                date_key = item.created_at.strftime("%Y-%m-%d")
+            if item["created_at"]:
+                date_key = item["created_at"].strftime("%Y-%m-%d")
             else:
                 date_key = "unknown"
 
             items_by_date[date_key].append({
-                "source_type": source_type,
+                "source_type": item["source_type"],
                 "statement": statement,
-                "date": item.created_at,
+                "date": item["created_at"],
             })
 
         except Exception as e:
             logger.warning(
-                "failed to process item for log",
+                "Failed to process item for log",
                 extra={
                     "event": "wiki_log_process_error",
                     "error": str(e),
-                    "item_id": str(item.id) if hasattr(item, "id") else "unknown",
                 },
             )
             continue
