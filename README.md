@@ -73,18 +73,12 @@ curl http://localhost:8000/metrics
 make smoke
 ```
 
-### 5. Build the wiki
+### 5. Open the web UI
 
 When you want a readable knowledge layer on top of facts and
-reflections, run:
-
-```sh
-mnemos wiki build
-```
-
-The command reads the configured wiki schema, gathers the matching
-facts and reflections, and writes markdown pages into the wiki output
-directory.
+reflections, open the web UI and use the `Wiki` tab. Pages are built
+and refreshed through the application instead of a separate CLI
+command.
 
 ## Basic Usage
 
@@ -316,14 +310,8 @@ The runner:
 
 ### Wiki Generation
 
-Wiki generation turns accepted facts and reflections into human-readable
-markdown pages.
-
-Command:
-
-```sh
-mnemos wiki build
-```
+Wiki generation turns accepted facts and reflections into readable
+pages served through the API and web UI.
 
 The runner:
 
@@ -331,7 +319,7 @@ The runner:
 - filters them by the configured wiki schema
 - skips pages that do not have enough source material
 - calls the configured wiki LLM client
-- writes pages, index, and log files into the wiki output directory
+- updates the wiki page cache in PostgreSQL
 
 ### Governance
 

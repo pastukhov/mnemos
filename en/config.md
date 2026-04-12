@@ -78,8 +78,6 @@ truth for defaults is `.env.example` and `core/config.py`.
 
 ## Wiki
 
-- `WIKI_OUTPUT_DIR` - directory for generated wiki pages. Default:
-  `data/wiki`.
 - `WIKI_SCHEMA_PATH` - path to the wiki YAML schema. Default:
   `data/wiki_schema.yaml`.
 - `WIKI_LLM_TIMEOUT_SECONDS` - wiki LLM timeout. Default: `20`.
@@ -129,7 +127,6 @@ For a minimal local setup, you usually need:
 
 If you want wiki enabled, add:
 
-- `WIKI_OUTPUT_DIR`
 - `WIKI_SCHEMA_PATH`
 - optionally `WIKI_LLM_TIMEOUT_SECONDS`
 - optionally `WIKI_MAX_PAGE_CHARS`

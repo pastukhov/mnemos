@@ -466,3 +466,90 @@ async def test_mcp_get_context_returns_plain_text():
   assert "Mnemos context for query: observability" in context
   assert "[operational]" in context
   assert "User designs observable systems." in context
+
+
+@pytest.mark.asyncio
+async def test_mcp_list_wiki_pages_returns_cache_summaries():
+  def handler(request: httpx.Request) -> httpx.Response:
+    assert request.method == "GET"
+    assert request.url.path == "/api/wiki/pages"
+    return httpx.Response(
+      200,
+      json={
+        "items": [
+          {
+            "name": "career",
+            "title": "Career",
+            "facts_count": 4,
+            "reflections_count": 1,
+            "updated_at": "2026-03-10T10:00:00Z",
+            "is_stale": False,
+          },
+          {
+            "name": "values",
+            "title": "Values",
+            "facts_count": 2,
+            "reflections_count": 0,
+            "updated_at": "2026-03-10T11:00:00Z",
+            "is_stale": True,
+          },
+        ]
+      },
+    )
+
+  server = build_mcp_server(
+    settings=Settings(),
+    client=build_rest_client(handler),
+  )
+  result = await server.call_tool("list_wiki_pages", {})
+
+  assert result.structured_content["items"][0]["name"] == "career"
+  assert result.structured_content["items"][1]["is_stale"] is True
+
+
+@pytest.mark.asyncio
+async def test_mcp_read_wiki_page_returns_page_content():
+  def handler(request: httpx.Request) -> httpx.Response:
+    assert request.method == "GET"
+    assert request.url.path == "/api/wiki/pages/career"
+    return httpx.Response(
+      200,
+      json={
+        "name": "career",
+        "title": "Career",
+        "facts_count": 4,
+        "reflections_count": 1,
+        "updated_at": "2026-03-10T10:00:00Z",
+        "is_stale": False,
+        "content": "# Career\n\nUser builds reliable automation systems.",
+      },
+    )
+
+  server = build_mcp_server(
+    settings=Settings(),
+    client=build_rest_client(handler),
+  )
+  result = await server.call_tool("read_wiki_page", {"name": "career"})
+
+  assert result.structured_content["found"] is True
+  assert result.structured_content["page"]["name"] == "career"
+  assert "automation systems" in result.structured_content["page"]["content"]
+
+
+@pytest.mark.asyncio
+async def test_mcp_read_wiki_page_handles_missing_page():
+  def handler(request: httpx.Request) -> httpx.Response:
+    assert request.method == "GET"
+    assert request.url.path == "/api/wiki/pages/missing"
+    return httpx.Response(404, json={"detail": "wiki page not found"})
+
+  server = build_mcp_server(
+    settings=Settings(),
+    client=build_rest_client(handler),
+  )
+  result = await server.call_tool("read_wiki_page", {"name": "missing"})
+
+  assert result.structured_content == {
+    "found": False,
+    "name": "missing",
+  }

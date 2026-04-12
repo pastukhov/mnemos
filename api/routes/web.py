@@ -16,7 +16,7 @@ from api.schemas import (
   WebListItemsResponse,
   WebOverviewResponse,
 )
-from core.config import ALLOWED_DOMAINS, get_settings
+from core.config import ALLOWED_DOMAINS
 from services.memory_governance_service import MemoryGovernanceService
 from services.memory_service import MemoryService
 from services.user_import_service import UserImportService
@@ -48,7 +48,6 @@ def web_overview(
   governance_service: MemoryGovernanceService = Depends(get_checked_governance_service),
   memory_service: MemoryService = Depends(get_checked_memory_service),
 ) -> WebOverviewResponse:
-  settings = get_settings()
   postgres_status = "ok"
   qdrant_status = "ok"
   try:
@@ -66,14 +65,7 @@ def web_overview(
     WebDomainSummary(domain=domain, items_total=len(memory_service.list_items_by_domain(domain)))
     for domain in ALLOWED_DOMAINS
   ]
-  wiki_output_dir = Path(settings.wiki_output_dir)
-  wiki_pages_total = 0
-  if wiki_output_dir.exists():
-    wiki_pages_total = sum(
-      1
-      for path in wiki_output_dir.glob("*.md")
-      if path.name not in {"index.md", "log.md"}
-    )
+  wiki_pages_total = sum(1 for page in memory_service.list_wiki_pages() if page.invalidated_at is None)
   pending_candidates = len(governance_service.list_candidates(status="pending"))
   overall = "ready" if postgres_status == "ok" and qdrant_status == "ok" else "degraded"
   return WebOverviewResponse(
@@ -203,6 +195,7 @@ def build_shell(*, initial_lang: str | None = None) -> str:
     <nav class="nav">
       <button class="nav__item is-active" data-nav-target="home" data-i18n="nav.home">Главная</button>
       <button class="nav__item" data-nav-target="search" data-i18n="nav.search">Поиск</button>
+      <button class="nav__item" data-nav-target="wiki" data-i18n="nav.wiki">Вики</button>
       <button class="nav__item" data-nav-target="add" data-i18n="nav.add">Добавить</button>
       <button class="nav__item" data-nav-target="import" data-i18n="nav.import">Импорт</button>
       <button class="nav__item" data-nav-target="review" data-i18n="nav.review">Проверка</button>
@@ -281,6 +274,28 @@ def build_shell(*, initial_lang: str | None = None) -> str:
           </form>
         </article>
         <div id="search-results" class="result-list"></div>
+      </section>
+
+      <section class="panel" data-panel="wiki">
+        <div class="grid wiki-layout">
+          <article class="card">
+            <div class="toolbar">
+              <h2 data-i18n="wiki.title">Wiki</h2>
+              <button class="button button--ghost" id="refresh-wiki" data-i18n="actions.refresh">Обновить</button>
+            </div>
+            <div id="wiki-pages" class="result-list"></div>
+          </article>
+          <article class="card wiki-detail">
+            <div class="toolbar">
+              <div>
+                <h2 id="wiki-page-title" data-i18n="wiki.title">Wiki</h2>
+                <p id="wiki-page-meta" class="muted"></p>
+              </div>
+              <button class="button button--primary" id="wiki-regenerate" data-i18n="wiki.regenerate" hidden>Обновить страницу</button>
+            </div>
+            <pre id="wiki-page-content" class="wiki-detail__content" data-i18n="wiki.empty">Пока нет wiki-страниц. Они появятся после накопления фактов и генерации.</pre>
+          </article>
+        </div>
       </section>
 
       <section class="panel" data-panel="add">

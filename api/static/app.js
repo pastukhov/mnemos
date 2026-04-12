@@ -24,6 +24,7 @@ const translations = {
     nav: {
       home: "Главная",
       search: "Поиск",
+      wiki: "Вики",
       add: "Добавить",
       import: "Импорт",
       review: "Проверка",
@@ -143,6 +144,14 @@ const translations = {
       mode: "режим",
       reject_reason: "Отклонено через веб-интерфейс",
     },
+    wiki: {
+      title: "Wiki",
+      empty: "Пока нет wiki-страниц. Они появятся после накопления фактов и генерации.",
+      stale: "Устарело",
+      regenerate: "Обновить страницу",
+      facts_count: "Фактов: {count}",
+      updated_at: "Обновлено: {value}",
+    },
     help: {
       what_is: {
         title: "Что такое Mnemos",
@@ -153,7 +162,7 @@ const translations = {
         title: "Как проходит путь памяти",
         step_1: "Сырые записи сохраняются как notes или raw.",
         step_2: "Из них извлекаются facts и reflections.",
-        step_3: "Команда `mnemos wiki build` собирает wiki-страницы.",
+        step_3: "Wiki-страницы собираются автоматически из facts и reflections.",
         step_4: "Проверяйте кандидатов, если хотите принять новые знания вручную.",
       },
       next_steps: {
@@ -161,7 +170,7 @@ const translations = {
         step_1: "Начните с вкладки «Добавить», чтобы сохранить первую запись.",
         step_2: "Используйте вкладку «Импорт», если у вас уже есть заметки или экспорт диалога.",
         step_3: "Открывайте вкладку «Проверка», когда система предлагает новые кандидаты.",
-        step_4: "Запускайте wiki build, когда хотите превратить факты в читаемую документацию.",
+        step_4: "Открывайте вкладку «Вики», чтобы читать собранные страницы и при необходимости обновлять их вручную.",
       },
     },
     common: {
@@ -195,6 +204,7 @@ const translations = {
     nav: {
       home: "Home",
       search: "Search",
+      wiki: "Wiki",
       add: "Add",
       import: "Import",
       review: "Review",
@@ -314,6 +324,14 @@ const translations = {
       mode: "mode",
       reject_reason: "Rejected via the web interface",
     },
+    wiki: {
+      title: "Wiki",
+      empty: "There are no wiki pages yet. They will appear after facts accumulate and pages are generated.",
+      stale: "Stale",
+      regenerate: "Regenerate page",
+      facts_count: "Facts: {count}",
+      updated_at: "Updated: {value}",
+    },
     help: {
       what_is: {
         title: "What Mnemos is",
@@ -324,7 +342,7 @@ const translations = {
         title: "How the memory flow works",
         step_1: "Raw records are stored as notes or raw items.",
         step_2: "Facts and reflections are extracted from them.",
-        step_3: "The `mnemos wiki build` command assembles wiki pages.",
+        step_3: "Wiki pages are assembled automatically from facts and reflections.",
         step_4: "Candidates stay reviewable if you want to accept knowledge manually.",
       },
       next_steps: {
@@ -332,7 +350,7 @@ const translations = {
         step_1: "Start with the Add tab to save your first record.",
         step_2: "Use the Import tab if you already have notes or a chat export.",
         step_3: "Open the Review tab when the system proposes new candidates.",
-        step_4: "Run wiki build when you want facts turned into readable documentation.",
+        step_4: "Open the Wiki tab to read generated pages and regenerate them when needed.",
       },
     },
     common: {
@@ -346,6 +364,7 @@ const translations = {
 const state = {
   currentLang: "ru",
   importPayload: null,
+  currentWikiPageName: null,
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -357,6 +376,7 @@ document.addEventListener("DOMContentLoaded", () => {
   bindImportForm();
   bindReviewActions();
   bindRecentActions();
+  bindWikiActions();
   applyTranslations();
   setLanguage(state.currentLang, {persist: false});
 });
@@ -400,6 +420,9 @@ function setLanguage(lang, {persist = true} = {}) {
   loadOverview();
   loadRecentItems();
   loadReviewQueue();
+  if (document.querySelector('.panel[data-panel="wiki"]')?.classList.contains("is-active")) {
+    loadWikiPages();
+  }
 }
 
 function applyTranslations() {
@@ -436,6 +459,9 @@ function activatePanel(name) {
   document.querySelectorAll(".panel").forEach((panel) => {
     panel.classList.toggle("is-active", panel.dataset.panel === name);
   });
+  if (name === "wiki") {
+    loadWikiPages();
+  }
 }
 
 async function loadOverview() {
@@ -620,6 +646,103 @@ function bindReviewActions() {
   document.getElementById("refresh-review").addEventListener("click", loadReviewQueue);
 }
 
+function bindWikiActions() {
+  document.getElementById("refresh-wiki").addEventListener("click", () => loadWikiPages());
+  document.getElementById("wiki-regenerate").addEventListener("click", async () => {
+    if (!state.currentWikiPageName) return;
+    const response = await fetch(`/api/wiki/pages/${encodeURIComponent(state.currentWikiPageName)}/regenerate`, {
+      method: "POST",
+    });
+    const data = await response.json();
+    if (!response.ok) return;
+    renderWikiPage(data);
+    await loadWikiPages();
+    loadOverview();
+  });
+}
+
+async function loadWikiPages() {
+  const response = await fetch("/api/wiki/pages");
+  const data = await response.json();
+  renderWikiPages(data.items || []);
+  if (!state.currentWikiPageName && data.items?.length) {
+    await loadWikiPage(data.items[0].name);
+    return;
+  }
+  if (state.currentWikiPageName && data.items?.some((item) => item.name === state.currentWikiPageName)) {
+    await loadWikiPage(state.currentWikiPageName);
+    return;
+  }
+  if (!data.items?.length) {
+    renderWikiEmptyState();
+    state.currentWikiPageName = null;
+    return;
+  }
+  await loadWikiPage(data.items[0].name);
+}
+
+async function loadWikiPage(name) {
+  const response = await fetch(`/api/wiki/pages/${encodeURIComponent(name)}`);
+  const data = await response.json();
+  if (!response.ok) return;
+  state.currentWikiPageName = data.name;
+  renderWikiPage(data);
+  highlightWikiSelection(data.name);
+  loadOverview();
+}
+
+function renderWikiPages(items) {
+  const root = document.getElementById("wiki-pages");
+  root.innerHTML = "";
+  if (!items.length) {
+    root.innerHTML = `<div class="empty-state">${escapeHtml(t("wiki.empty"))}</div>`;
+    return;
+  }
+  items.forEach((item) => {
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "wiki-page-card";
+    card.dataset.pageName = item.name;
+    card.innerHTML = `
+      <div class="wiki-page-card__head">
+        <strong>${escapeHtml(item.title)}</strong>
+        ${item.is_stale ? `<span class="pill pill--accent">${escapeHtml(t("wiki.stale"))}</span>` : ""}
+      </div>
+      <div class="result-card__meta">
+        <span class="pill">${escapeHtml(formatMessage("wiki.facts_count", {count: item.facts_count}))}</span>
+        <span class="pill">${escapeHtml(formatMessage("wiki.updated_at", {value: formatDateTime(item.updated_at)}))}</span>
+      </div>
+    `;
+    card.addEventListener("click", () => loadWikiPage(item.name));
+    root.append(card);
+  });
+  highlightWikiSelection(state.currentWikiPageName);
+}
+
+function renderWikiPage(page) {
+  document.getElementById("wiki-page-title").textContent = page.title;
+  document.getElementById("wiki-page-meta").textContent = [
+    formatMessage("wiki.facts_count", {count: page.facts_count}),
+    formatMessage("wiki.updated_at", {value: formatDateTime(page.updated_at)}),
+    page.is_stale ? t("wiki.stale") : null,
+  ].filter(Boolean).join(" • ");
+  document.getElementById("wiki-page-content").textContent = page.content;
+  document.getElementById("wiki-regenerate").hidden = false;
+}
+
+function renderWikiEmptyState() {
+  document.getElementById("wiki-page-title").textContent = t("wiki.title");
+  document.getElementById("wiki-page-meta").textContent = "";
+  document.getElementById("wiki-page-content").textContent = t("wiki.empty");
+  document.getElementById("wiki-regenerate").hidden = true;
+}
+
+function highlightWikiSelection(name) {
+  document.querySelectorAll(".wiki-page-card").forEach((node) => {
+    node.classList.toggle("is-active", node.dataset.pageName === name);
+  });
+}
+
 async function loadReviewQueue() {
   const [sessionsResponse, response] = await Promise.all([
     fetch("/memory/review-sessions"),
@@ -749,6 +872,14 @@ function extractErrorDetail(data) {
   if (typeof data.detail === "string") return data.detail;
   if (typeof data.detail?.message === "string") return data.detail.message;
   return t("common.unknown_error");
+}
+
+function formatDateTime(value) {
+  if (!value) return "—";
+  return new Date(value).toLocaleString(state.currentLang === "ru" ? "ru-RU" : "en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
 }
 
 function formatMessage(key, values) {

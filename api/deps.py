@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from services.memory_governance_service import MemoryGovernanceService
 from services.memory_service import MemoryService
 from services.retrieval_service import RetrievalService
+from pipelines.wiki.wiki_runner import WikiBuildRunner
 
 
 def get_session(request: Request) -> Generator[Session, None, None]:
@@ -27,6 +28,10 @@ def get_retrieval_service(request: Request) -> RetrievalService:
 
 def get_governance_service(request: Request) -> MemoryGovernanceService:
   return request.app.state.governance_service
+
+
+def get_wiki_runner(request: Request) -> WikiBuildRunner:
+  return getattr(request.app.state, "wiki_runner", None)
 
 
 def get_checked_memory_service(
@@ -60,3 +65,14 @@ def get_checked_governance_service(
       detail="governance service unavailable",
     )
   return service
+
+
+def get_checked_wiki_runner(
+  runner: WikiBuildRunner = Depends(get_wiki_runner),
+) -> WikiBuildRunner:
+  if runner is None:
+    raise HTTPException(
+      status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+      detail="wiki runner unavailable",
+    )
+  return runner

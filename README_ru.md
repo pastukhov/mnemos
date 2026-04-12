@@ -86,16 +86,11 @@ curl http://localhost:8000/metrics
 make smoke
 ```
 
-### 5. Построй wiki
+### 5. Открой web UI
 
-Если нужен читаемый слой знаний поверх facts и reflections, запусти:
-
-```sh
-mnemos wiki build
-```
-
-Команда читает настроенную wiki schema, собирает подходящие facts и
-reflections и записывает markdown pages в wiki output directory.
+Если нужен читаемый слой знаний поверх facts и reflections, открой web
+UI и используй вкладку `Wiki`. Страницы собираются и обновляются через
+приложение, без отдельной CLI-команды.
 
 ## Базовое использование
 
@@ -328,14 +323,8 @@ Runner:
 
 ### Wiki Generation
 
-Wiki generation превращает принятые facts и reflections в human-readable
-markdown pages.
-
-Команда:
-
-```sh
-mnemos wiki build
-```
+Wiki generation превращает принятые facts и reflections в читаемые
+страницы, которые отдаются через API и web UI.
 
 Runner:
 
@@ -343,7 +332,9 @@ Runner:
 - фильтрует их по configured wiki schema
 - пропускает pages, если source material недостаточно
 - вызывает configured wiki LLM client
-- записывает pages, index и log files в wiki output directory
+- обновляет wiki cache в PostgreSQL
+- сохраняет сгенерированные страницы в кэше PostgreSQL и отдаёт их через
+  API и web UI
 
 ### Governance
 

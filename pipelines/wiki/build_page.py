@@ -1,10 +1,8 @@
 """Helper functions for wiki page building and synthesis."""
 
 import hashlib
-from datetime import datetime, timezone
-from pathlib import Path
-
-import yaml
+import json
+import re
 
 from pipelines.wiki.wiki_schema import WikiPageDefinition
 
@@ -19,88 +17,69 @@ def compute_items_fingerprint(facts: list[str], reflections: list[str]) -> str:
     Returns:
         SHA256 hash of concatenated items
     """
-    # Concatenate all items in deterministic order
-    items_text = "".join(facts) + "".join(reflections)
-    fingerprint = hashlib.sha256(items_text.encode("utf-8")).hexdigest()
+    fingerprint = hashlib.sha256(
+        json.dumps(
+            {
+                "facts": facts,
+                "reflections": reflections,
+            },
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
     return fingerprint
 
 
-def read_existing_page(page_path: Path) -> tuple[str, str | None]:
-    """Read existing wiki page and extract frontmatter fingerprint.
-
-    Args:
-        page_path: Path to wiki page file
-
-    Returns:
-        Tuple of (full_content, fingerprint) where fingerprint is None if not found
-    """
-    if not page_path.exists():
-        return "", None
-
-    content = page_path.read_text(encoding="utf-8")
-
-    # Try to extract frontmatter
-    if not content.startswith("---\n"):
-        return content, None
-
-    parts = content.split("---\n")
-    if len(parts) < 3:
-        return content, None
-
-    try:
-        frontmatter_text = parts[1]
-        frontmatter = yaml.safe_load(frontmatter_text)
-        fingerprint = frontmatter.get("source_fingerprint") if frontmatter else None
-        return content, fingerprint
-    except Exception:
-        # Log the error but gracefully continue
-        # (YAML parse errors are acceptable - frontmatter might be malformed)
-        return content, None
-
-
-def write_wiki_page(page_path: Path, frontmatter: str, content: str) -> None:
-    """Write wiki page with frontmatter to disk.
-
-    Args:
-        page_path: Path to wiki page file
-        frontmatter: YAML frontmatter string
-        content: Markdown content (without frontmatter)
-    """
-    page_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # Combine frontmatter and content
-    full_content = f"---\n{frontmatter}---\n{content}"
-
-    page_path.write_text(full_content, encoding="utf-8")
-
-
-def generate_frontmatter(
+def compute_page_fingerprint(
     page_def: WikiPageDefinition,
     facts: list[str],
     reflections: list[str],
-    fingerprint: str,
 ) -> str:
-    """Generate YAML frontmatter for wiki page.
+    """Compute fingerprint from page definition and source items."""
+    return hashlib.sha256(
+        json.dumps(
+            {
+                "page": {
+                    "name": page_def.name,
+                    "title": page_def.title,
+                    "description": page_def.description,
+                    "domains": page_def.domains,
+                    "kinds": page_def.kinds,
+                    "themes": page_def.themes,
+                },
+                "items": {
+                    "facts": facts,
+                    "reflections": reflections,
+                },
+            },
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
 
-    Args:
-        page_def: Page definition
-        facts: List of facts used
-        reflections: List of reflections used
-        fingerprint: Source fingerprint
 
-    Returns:
-        YAML frontmatter string (without surrounding ---)
-    """
-    frontmatter = {
-        "title": page_def.title,
-        "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-        "source_fingerprint": fingerprint,
-        "facts_count": len(facts),
-        "reflections_count": len(reflections),
-    }
+def encode_cached_page_content(*, fingerprint: str, content_md: str) -> str:
+  """Embed the source fingerprint in a markdown comment."""
+  comment = f"<!-- wiki-source-fingerprint: {fingerprint} -->"
+  return f"{comment}\n\n{content_md.lstrip()}"
 
-    # Generate YAML
-    yaml_content = yaml.dump(frontmatter, default_flow_style=False, allow_unicode=True)
 
-    # Remove trailing newline that yaml.dump adds
-    return yaml_content.rstrip("\n") + "\n"
+def extract_cached_page_fingerprint(content_md: str) -> str | None:
+  """Extract the embedded source fingerprint from cached markdown."""
+  match = re.match(
+    r"^<!-- wiki-source-fingerprint: ([0-9a-f]{64}) -->(?:\n\n|\n)?",
+    content_md,
+  )
+  if not match:
+    return None
+  return match.group(1)
+
+
+def strip_cached_page_metadata(content_md: str) -> str:
+  """Remove the embedded fingerprint comment from cached markdown."""
+  return re.sub(
+    r"^<!-- wiki-source-fingerprint: [0-9a-f]{64} -->(?:\n\n|\n)?",
+    "",
+    content_md,
+    count=1,
+  )

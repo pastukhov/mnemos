@@ -117,6 +117,30 @@ class ReflectionMetric(Base):
   )
 
 
+class WikiPageCache(Base):
+  __tablename__ = "wiki_page_cache"
+  __table_args__ = (
+    Index("uq_wiki_page_cache_page_name", "page_name", unique=True),
+    Index("idx_wiki_page_cache_invalidated_at", "invalidated_at"),
+  )
+
+  id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+  page_name: Mapped[str] = mapped_column(String(255), nullable=False)
+  title: Mapped[str] = mapped_column(String(255), nullable=False)
+  content_md: Mapped[str] = mapped_column(Text, nullable=False)
+  facts_count: Mapped[int] = mapped_column(nullable=False, default=0)
+  reflections_count: Mapped[int] = mapped_column(nullable=False, default=0)
+  generated_at: Mapped[datetime] = mapped_column(
+    DateTime(timezone=True),
+    nullable=False,
+    default=lambda: datetime.now(UTC),
+  )
+  invalidated_at: Mapped[datetime | None] = mapped_column(
+    DateTime(timezone=True),
+    nullable=True,
+  )
+
+
 class MemoryCandidate(Base):
   __tablename__ = "memory_candidates"
   __table_args__ = (

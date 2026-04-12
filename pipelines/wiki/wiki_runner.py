@@ -2,20 +2,16 @@
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
-from pathlib import Path
 
 from core.config import Settings
 from core.logging import get_logger
 from pipelines.wiki.build_page import (
-    compute_items_fingerprint,
-    generate_frontmatter,
-    read_existing_page,
-    write_wiki_page,
+  compute_page_fingerprint,
+  encode_cached_page_content,
+  extract_cached_page_fingerprint,
+  strip_cached_page_metadata,
 )
-from pipelines.wiki.generate_index import generate_index
-from pipelines.wiki.generate_log import generate_log
 from pipelines.wiki.wiki_llm_client import WikiLLMClient
 from pipelines.wiki.wiki_schema import WikiPageDefinition, WikiSchema
 from services.memory_service import MemoryService
@@ -25,328 +21,226 @@ logger = get_logger(__name__)
 
 @dataclass(slots=True)
 class WikiBuildReport:
-    """Report of wiki build run."""
+  """Report of wiki build run."""
 
-    pages_built: int = 0
-    pages_updated: int = 0
-    pages_skipped: int = 0
-    errors: int = 0
+  pages_built: int = 0
+  pages_updated: int = 0
+  pages_skipped: int = 0
+  errors: int = 0
 
-    def render(self) -> str:
-        """Render human-readable report."""
-        lines = [
-            f"Pages built: {self.pages_built}",
-            f"Pages updated: {self.pages_updated}",
-            f"Pages skipped: {self.pages_skipped}",
-        ]
-        if self.errors:
-            lines.append(f"Errors: {self.errors}")
-        return "\n".join(lines)
+  def render(self) -> str:
+    """Render human-readable report."""
+    lines = [
+      f"Pages built: {self.pages_built}",
+      f"Pages updated: {self.pages_updated}",
+      f"Pages skipped: {self.pages_skipped}",
+    ]
+    if self.errors:
+      lines.append(f"Errors: {self.errors}")
+    return "\n".join(lines)
 
 
 class WikiBuildRunner:
-    """Runner for building wiki pages from facts and reflections."""
+  """Runner for building wiki pages from facts and reflections."""
 
-    def __init__(
-        self,
-        memory_service: MemoryService,
-        wiki_llm_client: WikiLLMClient,
-        settings: Settings,
-    ) -> None:
-        """Initialize wiki build runner.
+  def __init__(
+    self,
+    memory_service: MemoryService,
+    wiki_llm_client: WikiLLMClient,
+    settings: Settings,
+  ) -> None:
+    """Initialize wiki build runner."""
+    self.memory_service = memory_service
+    self.llm_client = wiki_llm_client
+    self.settings = settings
+    self.schema: WikiSchema | None = None
 
-        Args:
-            memory_service: Memory service for loading facts/reflections
-            wiki_llm_client: LLM client for synthesizing pages
-            settings: Application settings
-        """
-        self.memory_service = memory_service
-        self.llm_client = wiki_llm_client
-        self.settings = settings
-        self.schema: WikiSchema | None = None
+  def run(
+    self,
+    domain: str | None = None,
+    page_name: str | None = None,
+  ) -> WikiBuildReport:
+    """Run wiki build pipeline."""
+    report = WikiBuildReport()
 
-    def run(
-        self,
-        domain: str | None = None,
-        page_name: str | None = None,
-    ) -> WikiBuildReport:
-        """Run wiki build pipeline.
-
-        Args:
-            domain: Optional domain filter (e.g., 'self', 'project')
-            page_name: Optional specific page to build
-
-        Returns:
-            WikiBuildReport with results
-        """
-        report = WikiBuildReport()
-
-        # Load schema if not already loaded
-        if self.schema is None:
-            try:
-                self.schema = WikiSchema.load_from_yaml(self.settings.wiki_schema_path)
-            except FileNotFoundError:
-                logger.error(
-                    "wiki schema file not found",
-                    extra={
-                        "event": "wiki_build_schema_not_found",
-                        "path": self.settings.wiki_schema_path,
-                    },
-                )
-                report.errors += 1
-                return report
-
-        logger.info(
-            "wiki build starting",
-            extra={
-                "event": "wiki_build",
-                "pages_total": len(self.schema.pages),
-                "domain_filter": domain,
-                "page_name_filter": page_name,
-            },
+    if self.schema is None:
+      try:
+        self.schema = WikiSchema.load_from_yaml(self.settings.wiki_schema_path)
+      except FileNotFoundError:
+        logger.error(
+          "wiki schema file not found",
+          extra={
+            "event": "wiki_build_schema_not_found",
+            "path": self.settings.wiki_schema_path,
+          },
         )
-
-        # Create output directory
-        output_dir = Path(self.settings.wiki_output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True)
-
-        # Process each page definition
-        for page_def in self.schema.pages:
-            # Apply filters
-            if page_name and page_def.name != page_name:
-                report.pages_skipped += 1
-                continue
-
-            if domain and domain not in page_def.domains:
-                report.pages_skipped += 1
-                continue
-
-            # Build the page
-            self._build_page(page_def, output_dir, report, domain)
-
-        # Generate index.md
-        try:
-            index_content = generate_index(self.settings.wiki_output_dir, self.schema)
-            self._write_file(
-                os.path.join(self.settings.wiki_output_dir, "index.md"),
-                index_content,
-            )
-            logger.info(
-                "wiki index generated",
-                extra={"event": "wiki_index_written"},
-            )
-        except Exception:
-            logger.exception(
-                "failed to generate wiki index",
-                extra={"event": "wiki_index_generation_failed"},
-            )
-
-        # Generate log.md
-        try:
-            log_content = generate_log(self.memory_service, self.settings.wiki_output_dir)
-            self._write_file(
-                os.path.join(self.settings.wiki_output_dir, "log.md"),
-                log_content,
-            )
-            logger.info(
-                "wiki log generated",
-                extra={"event": "wiki_log_written"},
-            )
-        except Exception:
-            logger.exception(
-                "failed to generate wiki log",
-                extra={"event": "wiki_log_generation_failed"},
-            )
-
-        logger.info(
-            "wiki build completed",
-            extra={
-                "event": "wiki_build",
-                "pages_built": report.pages_built,
-                "pages_updated": report.pages_updated,
-                "pages_skipped": report.pages_skipped,
-                "errors": report.errors,
-            },
-        )
-
+        report.errors += 1
         return report
 
-    def _build_page(
-        self,
-        page_def: WikiPageDefinition,
-        output_dir: Path,
-        report: WikiBuildReport,
-        domain_filter: str | None = None,
-    ) -> None:
-        """Build a single wiki page from facts and reflections.
+    logger.info(
+      "wiki build starting",
+      extra={
+        "event": "wiki_build",
+        "pages_total": len(self.schema.pages),
+        "domain_filter": domain,
+        "page_name_filter": page_name,
+      },
+    )
 
-        This method:
-        1. Loads facts and reflections for the page from memory service
-        2. Checks if there are enough facts (>= wiki_min_facts_per_page)
-        3. Computes fingerprint of input data
-        4. Checks if page exists and if fingerprint has changed
-        5. Synthesizes page content via LLM
-        6. Generates frontmatter with metadata
-        7. Writes page to disk
-        8. Updates report with result
+    for page_def in self.schema.pages:
+      if page_name and page_def.name != page_name:
+        report.pages_skipped += 1
+        continue
 
-        Args:
-            page_def: WikiPageDefinition with page configuration
-            output_dir: Output directory path for wiki pages
-            report: WikiBuildReport to update with results
-            domain_filter: Optional domain filter to override page_def domains
-        """
-        page_path = output_dir / f"{page_def.name}.md"
+      if domain and domain not in page_def.domains:
+        report.pages_skipped += 1
+        continue
 
-        try:
-            # Load facts and reflections for this page
-            facts_list, reflections_list = self._load_items_for_page(
-                page_def,
-                domain_filter,
-            )
+      self._build_page(page_def, report, domain)
 
-            # Check if we have minimum facts
-            if len(facts_list) < self.settings.wiki_min_facts_per_page:
-                report.pages_skipped += 1
-                logger.info(
-                    "wiki page skipped: insufficient facts",
-                    extra={
-                        "event": "wiki_build_skip_insufficient_facts",
-                        "page_name": page_def.name,
-                        "facts_count": len(facts_list),
-                        "min_required": self.settings.wiki_min_facts_per_page,
-                    },
-                )
-                return
+    logger.info(
+      "wiki build completed",
+      extra={
+        "event": "wiki_build",
+        "pages_built": report.pages_built,
+        "pages_updated": report.pages_updated,
+        "pages_skipped": report.pages_skipped,
+        "errors": report.errors,
+      },
+    )
 
-            # Compute fingerprint of input data
-            fingerprint = compute_items_fingerprint(facts_list, reflections_list)
+    return report
 
-            # Check if page exists and if fingerprint changed
-            existing_content, existing_fingerprint = read_existing_page(page_path)
+  def _build_page(
+    self,
+    page_def: WikiPageDefinition,
+    report: WikiBuildReport,
+    domain_filter: str | None = None,
+  ) -> None:
+    """Build a single wiki page from facts and reflections."""
+    try:
+      facts_list, reflections_list = self._load_items_for_page(
+        page_def,
+        domain_filter,
+      )
 
-            if existing_fingerprint == fingerprint:
-                # Page hasn't changed
-                report.pages_skipped += 1
-                logger.info(
-                    "wiki page skipped: fingerprint unchanged",
-                    extra={
-                        "event": "wiki_build_skip_unchanged",
-                        "page_name": page_def.name,
-                        "fingerprint": fingerprint,
-                    },
-                )
-                return
+      if len(facts_list) < self.settings.wiki_min_facts_per_page:
+        report.pages_skipped += 1
+        logger.info(
+          "wiki page skipped: insufficient facts",
+          extra={
+            "event": "wiki_build_skip_insufficient_facts",
+            "page_name": page_def.name,
+            "facts_count": len(facts_list),
+            "min_required": self.settings.wiki_min_facts_per_page,
+          },
+        )
+        return
 
-            # Determine if this is new or update
-            is_new = not page_path.exists()
+      fingerprint = compute_page_fingerprint(page_def, facts_list, reflections_list)
+      existing_page = self.memory_service.get_wiki_page(page_def.name)
+      existing_fingerprint = None
+      if existing_page is not None:
+        existing_fingerprint = extract_cached_page_fingerprint(existing_page.content_md)
 
-            # Synthesize page content with LLM
-            markdown_content = self.llm_client.synthesize_page(
-                page_def=page_def,
-                facts=facts_list,
-                reflections=reflections_list,
-                existing_content=existing_content if not is_new else None,
-            )
+      if (
+        existing_page is not None
+        and existing_page.invalidated_at is None
+        and existing_fingerprint == fingerprint
+      ):
+        report.pages_skipped += 1
+        logger.info(
+          "wiki page skipped: fingerprint unchanged",
+          extra={
+            "event": "wiki_build_skip_unchanged",
+            "page_name": page_def.name,
+            "fingerprint": fingerprint,
+          },
+        )
+        return
 
-            # Generate frontmatter
-            frontmatter = generate_frontmatter(
-                page_def,
-                facts_list,
-                reflections_list,
-                fingerprint,
-            )
+      markdown_content = self.llm_client.synthesize_page(
+        page_def=page_def,
+        facts=facts_list,
+        reflections=reflections_list,
+        existing_content=(
+          strip_cached_page_metadata(existing_page.content_md)
+          if existing_page is not None
+          else None
+        ),
+      )
 
-            # Write page to disk
-            write_wiki_page(page_path, frontmatter, markdown_content)
+      cached_content = encode_cached_page_content(
+        fingerprint=fingerprint,
+        content_md=markdown_content,
+      )
+      self.memory_service.upsert_wiki_page(
+        page_name=page_def.name,
+        title=page_def.title,
+        content_md=cached_content,
+        facts_count=len(facts_list),
+        reflections_count=len(reflections_list),
+        invalidated_at=None,
+      )
 
-            # Update report
-            if is_new:
-                report.pages_built += 1
-                log_event = "wiki_build_created"
-            else:
-                report.pages_updated += 1
-                log_event = "wiki_build_updated"
+      if existing_page is None:
+        report.pages_built += 1
+        log_event = "wiki_build_created"
+      else:
+        report.pages_updated += 1
+        log_event = "wiki_build_updated"
 
-            logger.info(
-                f"wiki page {log_event.split('_')[-1]}",
-                extra={
-                    "event": log_event,
-                    "page_name": page_def.name,
-                    "facts_count": len(facts_list),
-                    "reflections_count": len(reflections_list),
-                    "fingerprint": fingerprint,
-                },
-            )
+      logger.info(
+        f"wiki page {log_event.split('_')[-1]}",
+        extra={
+          "event": log_event,
+          "page_name": page_def.name,
+          "facts_count": len(facts_list),
+          "reflections_count": len(reflections_list),
+          "fingerprint": fingerprint,
+        },
+      )
 
-        except Exception:
-            report.errors += 1
-            logger.exception(
-                "wiki page synthesis failed",
-                extra={
-                    "event": "wiki_build_failed",
-                    "page_name": page_def.name,
-                },
-            )
+    except Exception:
+      report.errors += 1
+      logger.exception(
+        "wiki page synthesis failed",
+        extra={
+          "event": "wiki_build_failed",
+          "page_name": page_def.name,
+        },
+      )
 
-    def _load_items_for_page(
-        self,
-        page_def: WikiPageDefinition,
-        domain_filter: str | None = None,
-    ) -> tuple[list[str], list[str]]:
-        """Load facts and reflections for a page definition.
+  def _load_items_for_page(
+    self,
+    page_def: WikiPageDefinition,
+    domain_filter: str | None = None,
+  ) -> tuple[list[str], list[str]]:
+    """Load facts and reflections for a page definition."""
+    facts_list: list[str] = []
+    reflections_list: list[str] = []
 
-        Loads items from memory service based on page definition filters:
-        - Filters by domains specified in page_def or domain_filter
-        - Filters by kinds specified in page_def
-        - Optionally filters by themes if specified in page_def
+    domains_to_load = [domain_filter] if domain_filter else page_def.domains
 
-        Args:
-            page_def: WikiPageDefinition with domain, kind, and theme filters
-            domain_filter: Optional domain filter to override page_def domains
+    for domain in domains_to_load:
+      for kind in page_def.kinds:
+        items = self.memory_service.list_items_by_domain_kind(
+          domain=domain,
+          kind=kind,
+        )
 
-        Returns:
-            Tuple of (facts_list, reflections_list) where each is a list of statement strings
-        """
-        facts_list = []
-        reflections_list = []
+        if page_def.themes:
+          items = [
+            item
+            for item in items
+            if item.metadata_json and item.metadata_json.get("theme") in page_def.themes
+          ]
 
-        # Determine which domains to load from
-        domains_to_load = [domain_filter] if domain_filter else page_def.domains
+        item_statements = [item.statement for item in items]
 
-        # Load each kind from each domain
-        for domain in domains_to_load:
-            for kind in page_def.kinds:
-                items = self.memory_service.list_items_by_domain_kind(
-                    domain=domain,
-                    kind=kind,
-                )
+        if kind in self.settings.wiki_facts_kinds:
+          facts_list.extend(item_statements)
+        elif kind in self.settings.wiki_reflections_kinds:
+          reflections_list.extend(item_statements)
 
-                # Filter by theme if specified
-                if page_def.themes:
-                    items = [
-                        item
-                        for item in items
-                        if item.metadata_json.get("theme") in page_def.themes
-                    ]
-
-                # Collect items as strings
-                item_statements = [item.statement for item in items]
-
-                if kind in self.settings.wiki_facts_kinds:
-                    facts_list.extend(item_statements)
-                elif kind in self.settings.wiki_reflections_kinds:
-                    reflections_list.extend(item_statements)
-
-        return facts_list, reflections_list
-
-    def _write_file(self, path: str, content: str) -> None:
-        """Write file to disk, creating parent directories as needed.
-
-        Args:
-            path: File path to write to
-            content: File content
-        """
-        file_path = Path(path)
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-        file_path.write_text(content, encoding="utf-8")
+    return facts_list, reflections_list

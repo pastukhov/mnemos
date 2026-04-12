@@ -16,6 +16,8 @@ from api.schemas import (
   MemoryQueryResponse,
   MemorySchemaInfoResponse,
   ReviewSessionListResponse,
+  WikiPageListResponse,
+  WikiPageResponse,
 )
 from core.logging import get_logger
 
@@ -72,6 +74,16 @@ class MnemosRestClient:
   def list_review_sessions(self) -> ReviewSessionListResponse:
     response = self._request("GET", "/memory/review-sessions")
     return ReviewSessionListResponse.model_validate(response.json())
+
+  def list_wiki_pages(self) -> WikiPageListResponse:
+    response = self._request("GET", "/api/wiki/pages")
+    return WikiPageListResponse.model_validate(response.json())
+
+  def get_wiki_page(self, name: str) -> WikiPageResponse | None:
+    response = self._request("GET", f"/api/wiki/pages/{name}", allow_404=True)
+    if response.status_code == 404:
+      return None
+    return WikiPageResponse.model_validate(response.json())
 
   def add_memory_note(
     self,

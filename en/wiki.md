@@ -23,25 +23,21 @@ pages that can grow together with memory.
 
 1. You add raw material: notes, answers, texts, or other source records.
 1. Mnemos extracts facts and builds reflections.
-1. The `mnemos wiki build` command reads the schema and decides which
-   pages to generate.
+1. Wiki pages are available through the web UI and API; the schema
+   decides which pages should be shown and how they are refreshed.
 1. The LLM synthesizes markdown from facts, reflections, and, when
    available, the current page content.
 1. The result is written as regular `.md` files.
 
 This keeps the source of truth separate from the human-readable form.
 
-## How to run it
+## How to open it
 
-Basic command:
+Open the web UI or use the API:
 
-```text
-mnemos wiki build
-```
-
-You can also build pages selectively when you only need part of the
-wiki refreshed. Exact filters depend on the CLI implementation, but the
-main workflow always starts with `wiki build`.
+- `GET /api/wiki/pages` - list pages
+- `GET /api/wiki/pages/{name}` - read a page
+- `POST /api/wiki/pages/{name}/regenerate` - refresh a page
 
 ## How the schema works
 

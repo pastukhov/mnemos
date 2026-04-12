@@ -23,6 +23,7 @@ from api.validation import (
 )
 from core.config import ALLOWED_KINDS
 from core.schema_info import build_schema_info
+from pipelines.wiki.build_page import strip_cached_page_metadata
 
 
 class LivenessResponse(BaseModel):
@@ -476,6 +477,57 @@ class WebOverviewResponse(BaseModel):
 
 class WebListItemsResponse(BaseModel):
   items: list[MemoryItemResponse]
+
+
+class WikiPageSummaryResponse(BaseModel):
+  model_config = ConfigDict(from_attributes=True)
+
+  name: str
+  title: str
+  facts_count: int
+  reflections_count: int
+  updated_at: datetime
+  is_stale: bool
+
+  @model_validator(mode="before")
+  @classmethod
+  def enrich_from_page(cls, value: Any) -> Any:
+    if isinstance(value, dict):
+      return value
+    return {
+      "name": getattr(value, "page_name"),
+      "title": getattr(value, "title"),
+      "facts_count": getattr(value, "facts_count"),
+      "reflections_count": getattr(value, "reflections_count"),
+      "updated_at": getattr(value, "generated_at"),
+      "is_stale": getattr(value, "invalidated_at") is not None,
+    }
+
+
+class WikiPageResponse(BaseModel):
+  model_config = ConfigDict(from_attributes=True)
+
+  name: str
+  title: str
+  facts_count: int
+  reflections_count: int
+  updated_at: datetime
+  is_stale: bool
+  content: str
+
+  @model_validator(mode="before")
+  @classmethod
+  def enrich_from_page(cls, value: Any) -> Any:
+    if isinstance(value, dict):
+      return value
+    return {
+      **WikiPageSummaryResponse.enrich_from_page(value),
+      "content": strip_cached_page_metadata(getattr(value, "content_md")),
+    }
+
+
+class WikiPageListResponse(BaseModel):
+  items: list[WikiPageSummaryResponse]
 
 
 class ImportPreviewRequest(BaseModel):

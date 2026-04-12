@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from db.models import MemoryItem
@@ -59,6 +59,23 @@ class MemoryItemRepository:
     if status is not None:
       query = query.where(MemoryItem.status == status)
     query = query.order_by(MemoryItem.created_at.asc())
+    return list(self.session.execute(query).scalars())
+
+  def list_domains_with_kind(
+    self,
+    *,
+    kind: str,
+    status: str | None = "accepted",
+    min_count: int = 1,
+  ) -> list[str]:
+    query = select(MemoryItem.domain).where(MemoryItem.kind == kind)
+    if status is not None:
+      query = query.where(MemoryItem.status == status)
+    query = (
+      query.group_by(MemoryItem.domain)
+      .having(func.count(MemoryItem.id) >= min_count)
+      .order_by(MemoryItem.domain.asc())
+    )
     return list(self.session.execute(query).scalars())
 
   def list_facts_by_source_item_id(self, *, source_item_id: str) -> list[MemoryItem]:

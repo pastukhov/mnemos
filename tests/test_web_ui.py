@@ -4,6 +4,10 @@ def test_web_shell_renders_homepage(client):
   assert response.status_code == 200
   assert "Mnemos" in response.text
   assert "Добавить первую запись" in response.text
+  assert 'data-nav-target="wiki"' in response.text
+  assert 'data-panel="wiki"' in response.text
+  assert 'id="wiki-pages"' in response.text
+  assert 'id="wiki-page-content"' in response.text
   assert 'data-lang-switch="ru"' in response.text
   assert 'data-lang-switch="en"' in response.text
   assert "/ui/static/app.js" in response.text
@@ -41,6 +45,7 @@ def test_web_overview_reports_counts(client):
   assert response.status_code == 200
   assert body["status"] == "ready"
   assert body["pending_candidates"] == 1
+  assert "wiki_pages:0" in body["features"]
   self_domain = next(item for item in body["domains"] if item["domain"] == "self")
   assert self_domain["items_total"] == 1
 

@@ -221,6 +221,11 @@ h1 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.wiki-layout {
+  grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.4fr);
+  align-items: start;
+}
+
 .card {
   padding: 24px;
   margin-bottom: 20px;
@@ -276,6 +281,42 @@ textarea {
   border-radius: 20px;
   background: rgba(255, 250, 241, 0.82);
   border: 1px solid var(--line);
+}
+
+.wiki-page-card {
+  width: 100%;
+  text-align: left;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: rgba(255, 250, 241, 0.82);
+  color: inherit;
+  cursor: pointer;
+}
+
+.wiki-page-card.is-active {
+  border-color: rgba(182, 80, 45, 0.45);
+  box-shadow: inset 0 0 0 1px rgba(182, 80, 45, 0.18);
+}
+
+.wiki-page-card__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: start;
+  margin-bottom: 10px;
+}
+
+.wiki-detail__content {
+  margin: 0;
+  padding: 20px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: rgba(255, 250, 241, 0.66);
+  white-space: pre-wrap;
+  overflow-x: auto;
+  font: inherit;
+  line-height: 1.7;
 }
 
 .result-card__meta {
@@ -378,7 +419,8 @@ textarea {
 @media (max-width: 900px) {
   .hero,
   .grid--two,
-  .grid--three {
+  .grid--three,
+  .wiki-layout {
     grid-template-columns: 1fr;
   }
 

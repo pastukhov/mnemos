@@ -21,7 +21,6 @@ lead: Справочник по командам `mnemos` с примерами 
 | `extract` | Извлечь `fact` из длинных `raw`-материалов |
 | `reflect` | Собрать `reflection` на основе фактов |
 | `candidates` | Просмотреть и модерировать кандидатов |
-| `wiki` | Построить, проверить или запросить wiki |
 | `mcp-server` | Запустить MCP server |
 
 ## `ingest`
@@ -128,43 +127,14 @@ mnemos candidates accept 123
 mnemos candidates reject 123 --reason "too vague"
 ```
 
-## `wiki`
+## Wiki pages
 
-Строит и проверяет wiki-страницы.
+Wiki pages больше не доступны как отдельная CLI-команда. Используйте
+web UI или API:
 
-Синтаксис:
-
-```sh
-mnemos wiki build [--domain DOMAIN] [--page PAGE]
-mnemos wiki lint [--domain DOMAIN] [--fix]
-mnemos wiki query <question> [--domain DOMAIN]
-```
-
-Подкоманды:
-
-- `build` - сгенерировать wiki-страницы из facts и reflections
-- `lint` - проверить wiki на целостность и актуальность
-- `query` - задать вопрос к уже собранной wiki
-
-Флаги:
-
-- `--domain DOMAIN` - ограничить операцию одной областью памяти
-- `--page PAGE` - сгенерировать только одну wiki-страницу
-- `--fix` - попытаться исправить найденные проблемы при lint
-
-Примеры:
-
-```sh
-mnemos wiki build
-mnemos wiki build --domain self --page career
-mnemos wiki lint --fix
-mnemos wiki query "What are my workstyle preferences?"
-```
-
-Примечание:
-
-`mnemos wiki lint` и `mnemos wiki query` пока выводят заглушку:
-реализация запланирована на более поздний этап.
+- `GET /api/wiki/pages` - список страниц
+- `GET /api/wiki/pages/{name}` - прочитать страницу
+- `POST /api/wiki/pages/{name}/regenerate` - обновить страницу
 
 ## `mcp-server`
 
@@ -194,5 +164,5 @@ mnemos mcp-server --transport streamable-http --host 0.0.0.0 --port 9000
 - Затем извлеките `fact` через `extract`.
 - После этого соберите `reflection` через `reflect`.
 - Для проверки новых знаний используйте `candidates`.
-- Когда нужны читаемые страницы, запускайте `wiki build`.
+- Читаемые wiki-страницы доступны через web UI и API.
 - Для интеграции с агентами поднимайте `mcp-server`.

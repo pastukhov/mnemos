@@ -116,7 +116,14 @@ class Settings(BaseSettings):
   )
   reflection_min_chars: int = Field(default=20, validation_alias="REFLECTION_MIN_CHARS")
   reflection_max_chars: int = Field(default=300, validation_alias="REFLECTION_MAX_CHARS")
-  wiki_output_dir: str = Field(default="data/wiki", validation_alias="WIKI_OUTPUT_DIR")
+  pipeline_worker_enabled: bool = Field(
+    default=True,
+    validation_alias="PIPELINE_WORKER_ENABLED",
+  )
+  pipeline_worker_interval_seconds: float = Field(
+    default=60.0,
+    validation_alias="PIPELINE_WORKER_INTERVAL_SECONDS",
+  )
   wiki_schema_path: str = Field(
     default="data/wiki_schema.yaml",
     validation_alias="WIKI_SCHEMA_PATH",
@@ -140,6 +147,14 @@ class Settings(BaseSettings):
   wiki_reflections_kinds: list[str] = Field(
     default=["reflection"],
     validation_alias="WIKI_REFLECTIONS_KINDS",
+  )
+  pipeline_worker_enabled: bool = Field(
+    default=True,
+    validation_alias="PIPELINE_WORKER_ENABLED",
+  )
+  pipeline_worker_interval_seconds: float = Field(
+    default=60.0,
+    validation_alias="PIPELINE_WORKER_INTERVAL_SECONDS",
   )
 
   @computed_field

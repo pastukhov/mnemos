@@ -10,6 +10,13 @@ from sqlalchemy.pool import StaticPool
 from core.config import Settings
 from db.base import Base
 from embeddings.mock import MockEmbedder
+from pipelines.extract.fact_llm_client import MockFactLLMClient
+from pipelines.extract.fact_runner import FactExtractionRunner
+from pipelines.reflect.reflection_llm_client import MockReflectionLLMClient
+from pipelines.reflect.reflection_runner import ReflectionRunner
+from pipelines.wiki.wiki_llm_client import MockWikiLLMClient
+from pipelines.wiki.wiki_runner import WikiBuildRunner
+from workers.pipeline_worker import PipelineWorker
 
 
 class FakeCollections:
@@ -70,7 +77,9 @@ def client():
     qdrant_url="http://fake-qdrant",
     embedding_base_url="http://example.test/v1",
     qdrant_vector_size=8,
+    pipeline_worker_enabled=False,
   )
+  settings.pipeline_worker_enabled = False
   engine = create_engine(
     "sqlite+pysqlite:///:memory:",
     future=True,
@@ -81,6 +90,7 @@ def client():
   session_factory = sessionmaker(bind=engine, expire_on_commit=False)
 
   app = create_app(settings)
+  app.state.settings.pipeline_worker_enabled = False
   app.state.engine = engine
   app.state.session_factory = session_factory
   app.state.qdrant = FakeQdrant(settings)
@@ -105,5 +115,23 @@ def client():
     query_duration=MEMORY_QUERY_DURATION,
   )
   app.state.governance_service = MemoryGovernanceService(session_factory)
+  app.state.fact_llm_client = MockFactLLMClient()
+  app.state.fact_runner = FactExtractionRunner(app.state.memory_service, app.state.fact_llm_client, settings)
+  app.state.reflection_llm_client = MockReflectionLLMClient()
+  app.state.reflection_runner = ReflectionRunner(
+    app.state.memory_service,
+    app.state.reflection_llm_client,
+    settings,
+  )
+  app.state.wiki_llm_client = MockWikiLLMClient()
+  app.state.wiki_runner = WikiBuildRunner(app.state.memory_service, app.state.wiki_llm_client, settings)
+  app.state.pipeline_worker = PipelineWorker(
+    memory_service=app.state.memory_service,
+    fact_runner=app.state.fact_runner,
+    reflection_runner=app.state.reflection_runner,
+    wiki_runner=app.state.wiki_runner,
+    interval_seconds=settings.pipeline_worker_interval_seconds,
+  )
+  app.state.pipeline_worker_task = None
   with TestClient(app) as test_client:
     yield test_client

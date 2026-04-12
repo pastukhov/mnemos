@@ -21,7 +21,6 @@ below reflect the actual command tree and the key flags.
 | `extract` | Extract `fact` items from long `raw` material |
 | `reflect` | Build `reflection` items from facts |
 | `candidates` | List and moderate candidates |
-| `wiki` | Build, lint, or query the wiki |
 | `mcp-server` | Start the MCP server |
 
 ## `ingest`
@@ -127,43 +126,14 @@ mnemos candidates accept 123
 mnemos candidates reject 123 --reason "too vague"
 ```
 
-## `wiki`
+## Wiki pages
 
-Builds and checks wiki pages.
+Wiki pages are no longer exposed as a CLI command. Use the web UI or
+API instead:
 
-Syntax:
-
-```sh
-mnemos wiki build [--domain DOMAIN] [--page PAGE]
-mnemos wiki lint [--domain DOMAIN] [--fix]
-mnemos wiki query <question> [--domain DOMAIN]
-```
-
-Subcommands:
-
-- `build` - generate wiki pages from facts and reflections
-- `lint` - check the wiki for integrity and freshness issues
-- `query` - ask a question against the generated wiki
-
-Flags:
-
-- `--domain DOMAIN` - limit the operation to one memory domain
-- `--page PAGE` - build only one wiki page
-- `--fix` - try to fix issues found by lint
-
-Examples:
-
-```sh
-mnemos wiki build
-mnemos wiki build --domain self --page career
-mnemos wiki lint --fix
-mnemos wiki query "What are my workstyle preferences?"
-```
-
-Note:
-
-`mnemos wiki lint` and `mnemos wiki query` currently print placeholders.
-The full implementation is scheduled for a later phase.
+- `GET /api/wiki/pages` - list pages
+- `GET /api/wiki/pages/{name}` - read a page
+- `POST /api/wiki/pages/{name}/regenerate` - regenerate a page
 
 ## `mcp-server`
 
@@ -193,5 +163,5 @@ mnemos mcp-server --transport streamable-http --host 0.0.0.0 --port 9000
 - Extract facts with `extract`.
 - Build reflections with `reflect`.
 - Review new knowledge with `candidates`.
-- Generate readable pages with `wiki build`.
+- Access readable wiki pages through the web UI and API.
 - Expose memory to agents with `mcp-server`.

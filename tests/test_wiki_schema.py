@@ -268,11 +268,12 @@ class TestWikiSettings:
         """Test wiki settings have correct defaults"""
         settings = Settings()
 
-        assert settings.wiki_output_dir == "data/wiki"
         assert settings.wiki_schema_path == "data/wiki_schema.yaml"
         assert settings.wiki_llm_timeout_seconds == 20.0
         assert settings.wiki_max_page_chars == 5000
         assert settings.wiki_min_facts_per_page == 3
+        assert settings.pipeline_worker_enabled is True
+        assert settings.pipeline_worker_interval_seconds == 60.0
 
     def test_wiki_llm_defaults_to_reflection(self):
         """Test that wiki LLM settings default to reflection LLM"""
@@ -287,18 +288,16 @@ class TestWikiSettings:
         """Test wiki settings can be customized via env vars"""
         import os
 
-        os.environ["WIKI_OUTPUT_DIR"] = "custom/wiki"
         os.environ["WIKI_SCHEMA_PATH"] = "custom/schema.yaml"
         os.environ["WIKI_MAX_PAGE_CHARS"] = "10000"
         os.environ["WIKI_MIN_FACTS_PER_PAGE"] = "5"
 
         try:
             settings = Settings()
-            assert settings.wiki_output_dir == "custom/wiki"
             assert settings.wiki_schema_path == "custom/schema.yaml"
             assert settings.wiki_max_page_chars == 10000
             assert settings.wiki_min_facts_per_page == 5
         finally:
             # Clean up
-            for key in ["WIKI_OUTPUT_DIR", "WIKI_SCHEMA_PATH", "WIKI_MAX_PAGE_CHARS", "WIKI_MIN_FACTS_PER_PAGE"]:
+            for key in ["WIKI_SCHEMA_PATH", "WIKI_MAX_PAGE_CHARS", "WIKI_MIN_FACTS_PER_PAGE"]:
                 os.environ.pop(key, None)
