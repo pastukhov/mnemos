@@ -14,6 +14,7 @@ def test_wiki_page_cache_repository_upsert_and_list(client):
       content_md="# Career",
       facts_count=3,
       reflections_count=1,
+      metadata={"page_kind": "canonical", "origin": "schema"},
       generated_at=datetime.now(UTC),
     )
     session.commit()
@@ -23,6 +24,7 @@ def test_wiki_page_cache_repository_upsert_and_list(client):
   assert len(pages) == 1
   assert pages[0].page_name == "career"
   assert pages[0].title == "Career"
+  assert pages[0].metadata_json == {"page_kind": "canonical", "origin": "schema"}
 
 
 def test_wiki_page_cache_repository_lists_invalidated_pages(client):

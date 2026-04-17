@@ -140,6 +140,54 @@ class Settings(BaseSettings):
     default=3,
     validation_alias="WIKI_MIN_FACTS_PER_PAGE",
   )
+  wiki_query_auto_persist_enabled: bool = Field(
+    default=False,
+    validation_alias="WIKI_QUERY_AUTO_PERSIST_ENABLED",
+  )
+  wiki_query_auto_persist_min_confidence: float = Field(
+    default=0.75,
+    validation_alias="WIKI_QUERY_AUTO_PERSIST_MIN_CONFIDENCE",
+  )
+  wiki_query_auto_persist_min_sources: int = Field(
+    default=2,
+    validation_alias="WIKI_QUERY_AUTO_PERSIST_MIN_SOURCES",
+  )
+  wiki_query_auto_persist_prefix: str = Field(
+    default="qa",
+    validation_alias="WIKI_QUERY_AUTO_PERSIST_PREFIX",
+  )
+  wiki_query_promote_to_canonical_enabled: bool = Field(
+    default=True,
+    validation_alias="WIKI_QUERY_PROMOTE_TO_CANONICAL_ENABLED",
+  )
+  wiki_query_maintenance_enabled: bool = Field(
+    default=True,
+    validation_alias="WIKI_QUERY_MAINTENANCE_ENABLED",
+  )
+  wiki_query_maintenance_max_pages_per_cycle: int = Field(
+    default=10,
+    validation_alias="WIKI_QUERY_MAINTENANCE_MAX_PAGES_PER_CYCLE",
+  )
+  wiki_query_dedupe_enabled: bool = Field(
+    default=True,
+    validation_alias="WIKI_QUERY_DEDUPE_ENABLED",
+  )
+  wiki_query_near_dedupe_min_token_jaccard: float = Field(
+    default=0.6,
+    validation_alias="WIKI_QUERY_NEAR_DEDUPE_MIN_TOKEN_JACCARD",
+  )
+  wiki_query_near_dedupe_min_source_jaccard: float = Field(
+    default=1.0,
+    validation_alias="WIKI_QUERY_NEAR_DEDUPE_MIN_SOURCE_JACCARD",
+  )
+  wiki_query_merge_provenance_max_entries: int = Field(
+    default=3,
+    validation_alias="WIKI_QUERY_MERGE_PROVENANCE_MAX_ENTRIES",
+  )
+  wiki_source_highlights_target_count: int = Field(
+    default=3,
+    validation_alias="WIKI_SOURCE_HIGHLIGHTS_TARGET_COUNT",
+  )
   wiki_facts_kinds: list[str] = Field(
     default=["fact", "decision", "summary", "note", "task"],
     validation_alias="WIKI_FACTS_KINDS",

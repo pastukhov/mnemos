@@ -15,6 +15,7 @@ from api.schemas import (
   WebDomainSummary,
   WebListItemsResponse,
   WebOverviewResponse,
+  WebWikiHealthResponse,
 )
 from core.config import ALLOWED_DOMAINS
 from services.memory_governance_service import MemoryGovernanceService
@@ -65,7 +66,8 @@ def web_overview(
     WebDomainSummary(domain=domain, items_total=len(memory_service.list_items_by_domain(domain)))
     for domain in ALLOWED_DOMAINS
   ]
-  wiki_pages_total = sum(1 for page in memory_service.list_wiki_pages() if page.invalidated_at is None)
+  wiki_health = _build_wiki_health(memory_service)
+  wiki_pages_total = wiki_health.fresh_pages
   pending_candidates = len(governance_service.list_candidates(status="pending"))
   overall = "ready" if postgres_status == "ok" and qdrant_status == "ok" else "degraded"
   return WebOverviewResponse(
@@ -80,7 +82,15 @@ def web_overview(
       "review кандидатов",
       f"wiki_pages:{wiki_pages_total}",
     ],
+    wiki=wiki_health,
   )
+
+
+@router.get("/ui/api/wiki/health", response_model=WebWikiHealthResponse, include_in_schema=False)
+def web_wiki_health(
+  memory_service: MemoryService = Depends(get_checked_memory_service),
+) -> WebWikiHealthResponse:
+  return _build_wiki_health(memory_service)
 
 
 @router.get("/ui/api/items", response_model=WebListItemsResponse, include_in_schema=False)
@@ -135,6 +145,44 @@ def web_import_apply(
     created=applied.created,
     skipped=applied.skipped,
     items=[MemoryItemResponse.model_validate(item) for item in applied.items],
+  )
+
+
+def _build_wiki_health(memory_service: MemoryService) -> WebWikiHealthResponse:
+  pages = memory_service.list_wiki_pages()
+  total_pages = len(pages)
+  fresh_pages = sum(1 for page in pages if page.invalidated_at is None)
+  stale_pages = total_pages - fresh_pages
+  canonical_pages = sum(
+    1 for page in pages if (getattr(page, "metadata_json", None) or {}).get("page_kind") == "canonical"
+  )
+  query_pages = sum(
+    1 for page in pages if (getattr(page, "metadata_json", None) or {}).get("page_kind") == "query"
+  )
+  navigation_pages = sum(
+    1 for page in pages if (getattr(page, "metadata_json", None) or {}).get("page_kind") == "navigation"
+  )
+  # Lint-driven maintenance visibility is intentionally read-time derived from current cache.
+  from pipelines.wiki.wiki_lint_runner import WikiLintRunner
+
+  lint_report = WikiLintRunner(memory_service, memory_service.settings).run()
+  return WebWikiHealthResponse(
+    total_pages=total_pages,
+    fresh_pages=fresh_pages,
+    stale_pages=stale_pages,
+    canonical_pages=canonical_pages,
+    query_pages=query_pages,
+    navigation_pages=navigation_pages,
+    action_required_findings=lint_report.finding_codes(severity="action"),
+    warning_findings=lint_report.finding_codes(severity="warn"),
+    canonical_drift_pages=lint_report.canonical_drift_pages,
+    orphaned_query_pages=lint_report.orphaned_query_pages,
+    stale_navigation_pages=lint_report.stale_navigation_pages,
+    overmerged_query_pages=lint_report.overmerged_query_pages,
+    canonicalization_candidates=lint_report.canonicalization_candidates,
+    missing_page_candidates=lint_report.missing_page_candidates,
+    weakly_connected_pages=lint_report.weakly_connected_pages,
+    editorial_structure_issues=lint_report.editorial_structure_issues,
   )
 
 
@@ -283,6 +331,13 @@ def build_shell(*, initial_lang: str | None = None) -> str:
               <h2 data-i18n="wiki.title">Wiki</h2>
               <button class="button button--ghost" id="refresh-wiki" data-i18n="actions.refresh">Обновить</button>
             </div>
+            <div id="wiki-health" class="result-list"></div>
+            <div class="toolbar toolbar--wrap">
+              <button class="button button--ghost button--sm" id="wiki-maintenance-refresh" data-i18n="wiki.maintenance_refresh">Обновить qa-*</button>
+              <button class="button button--ghost button--sm" id="wiki-maintenance-canonicalize" data-i18n="wiki.maintenance_canonicalize">Канонизировать</button>
+              <button class="button button--ghost button--sm" id="wiki-maintenance-rebuild" data-i18n="wiki.maintenance_rebuild">Пересобрать</button>
+            </div>
+            <div id="wiki-maintenance-result" class="muted" style="font-size:0.8em;padding:0.25rem 0;min-height:1.2em"></div>
             <div id="wiki-pages" class="result-list"></div>
           </article>
           <article class="card wiki-detail">
@@ -293,7 +348,7 @@ def build_shell(*, initial_lang: str | None = None) -> str:
               </div>
               <button class="button button--primary" id="wiki-regenerate" data-i18n="wiki.regenerate" hidden>Обновить страницу</button>
             </div>
-            <pre id="wiki-page-content" class="wiki-detail__content" data-i18n="wiki.empty">Пока нет wiki-страниц. Они появятся после накопления фактов и генерации.</pre>
+            <div id="wiki-page-content" class="wiki-detail__content" data-i18n="wiki.empty">Пока нет wiki-страниц. Они появятся после накопления фактов и генерации.</div>
           </article>
         </div>
       </section>

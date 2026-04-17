@@ -130,6 +130,11 @@ class WikiPageCache(Base):
   content_md: Mapped[str] = mapped_column(Text, nullable=False)
   facts_count: Mapped[int] = mapped_column(nullable=False, default=0)
   reflections_count: Mapped[int] = mapped_column(nullable=False, default=0)
+  metadata_json: Mapped[dict[str, object] | None] = mapped_column(
+    "metadata",
+    JSON().with_variant(JSONB, "postgresql"),
+    nullable=True,
+  )
   generated_at: Mapped[datetime] = mapped_column(
     DateTime(timezone=True),
     nullable=False,

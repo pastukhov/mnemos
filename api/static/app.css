@@ -195,6 +195,17 @@ h1 {
   color: var(--text);
 }
 
+.button--sm {
+  padding: 6px 12px;
+  font-size: 0.8em;
+}
+
+.toolbar--wrap {
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
 .layout {
   padding-bottom: 40px;
 }
@@ -224,6 +235,10 @@ h1 {
 .wiki-layout {
   grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.4fr);
   align-items: start;
+}
+
+#wiki-health {
+  margin-bottom: 16px;
 }
 
 .card {
@@ -313,10 +328,51 @@ textarea {
   border-radius: 20px;
   border: 1px solid var(--line);
   background: rgba(255, 250, 241, 0.66);
-  white-space: pre-wrap;
   overflow-x: auto;
   font: inherit;
   line-height: 1.7;
+}
+
+.wiki-detail__content h1,
+.wiki-detail__content h2,
+.wiki-detail__content h3,
+.wiki-detail__content h4,
+.wiki-detail__content h5,
+.wiki-detail__content h6 {
+  margin: 1.2em 0 0.5em;
+  line-height: 1.25;
+}
+
+.wiki-detail__content h1:first-child,
+.wiki-detail__content h2:first-child,
+.wiki-detail__content h3:first-child,
+.wiki-detail__content h4:first-child,
+.wiki-detail__content h5:first-child,
+.wiki-detail__content h6:first-child,
+.wiki-detail__content p:first-child,
+.wiki-detail__content ul:first-child {
+  margin-top: 0;
+}
+
+.wiki-detail__content p,
+.wiki-detail__content ul {
+  margin: 0 0 1em;
+}
+
+.wiki-detail__content ul {
+  padding-left: 1.4em;
+}
+
+.wiki-detail__content code {
+  padding: 0.12em 0.35em;
+  border-radius: 8px;
+  background: rgba(44, 44, 44, 0.08);
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.95em;
+}
+
+.wiki-detail__content a {
+  color: var(--accent-deep);
 }
 
 .result-card__meta {

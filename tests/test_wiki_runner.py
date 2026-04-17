@@ -21,7 +21,7 @@ class FakeWikiLLMClient:
     self.fail_on_page_name = fail_on_page_name
     self.synthesized_pages: list[dict[str, object]] = []
 
-  def synthesize_page(self, page_def, facts, reflections, existing_content=None):
+  def synthesize_page(self, page_def, facts, reflections, existing_content=None, related_pages=None):
     if self.fail_on_page_name and page_def.name == self.fail_on_page_name:
       raise RuntimeError(f"LLM failed to synthesize page: {page_def.name}")
 
@@ -31,6 +31,7 @@ class FakeWikiLLMClient:
         "facts_count": len(facts),
         "reflections_count": len(reflections),
         "existing_content": existing_content,
+        "related_pages": related_pages,
       }
     )
 
@@ -101,11 +102,12 @@ def test_wiki_build_creates_cached_page_record(client):
     ],
   )
   llm_client = FakeWikiLLMClient()
+  client.app.state.settings.wiki_min_facts_per_page = 1
   runner = _build_runner(client, wiki_schema=wiki_schema, llm_client=llm_client)
 
   report = runner.run()
 
-  assert report.pages_built == 1
+  assert report.pages_built == 3
   assert report.pages_updated == 0
   assert report.pages_skipped == 0
   assert report.errors == 0
@@ -118,6 +120,240 @@ def test_wiki_build_creates_cached_page_record(client):
   assert page.invalidated_at is None
   assert extract_cached_page_fingerprint(page.content_md) is not None
   assert strip_cached_page_metadata(page.content_md).startswith("# Career")
+  page_content = strip_cached_page_metadata(page.content_md)
+  assert "## Source Highlights" in page_content
+  assert "## Provenance" in page_content
+  assert "- facts_count: 3" in page_content
+  assert "- reflections_count: 1" in page_content
+  assert "- source_ref: memory:" in page_content
+
+
+def test_wiki_build_maintains_index_and_log_pages(client):
+  _create_item(client, domain="self", kind="fact", statement="User builds automation systems.")
+  _create_item(client, domain="self", kind="fact", statement="User values observable delivery.")
+  _create_item(client, domain="self", kind="fact", statement="User enjoys reducing manual work.")
+  _create_item(client, domain="self", kind="reflection", statement="User is motivated by automation.")
+  _create_item(client, domain="project", kind="decision", statement="Use PostgreSQL as source of truth.")
+
+  wiki_schema = WikiSchema(
+    pages=[
+      WikiPageDefinition(
+        name="career",
+        title="Career",
+        description="Professional journey",
+        domains=["self"],
+        kinds=["fact", "reflection"],
+      ),
+    ],
+  )
+  llm_client = FakeWikiLLMClient()
+  client.app.state.settings.wiki_min_facts_per_page = 1
+  runner = _build_runner(client, wiki_schema=wiki_schema, llm_client=llm_client)
+
+  report = runner.run()
+
+  assert report.pages_built == 3
+  index_page = client.app.state.memory_service.get_wiki_page("index")
+  log_page = client.app.state.memory_service.get_wiki_page("log")
+
+  assert index_page is not None
+  assert index_page.title == "Wiki Index"
+  index_content = strip_cached_page_metadata(index_page.content_md)
+  assert "# Wiki Index" in index_content
+  assert "`career`" in index_content
+  assert "`index`" not in index_content
+  assert "`log`" not in index_content
+
+  assert log_page is not None
+  assert log_page.title == "Activity Log"
+  log_content = strip_cached_page_metadata(log_page.content_md)
+  assert "# Activity Log" in log_content
+  assert "Use PostgreSQL as source of truth." in log_content
+
+
+def test_wiki_build_adds_related_pages_section(client):
+  _create_item(client, domain="self", kind="fact", statement="User builds automation systems.", metadata={"theme": "career"})
+  _create_item(client, domain="self", kind="fact", statement="User values observable delivery.", metadata={"theme": "career"})
+  _create_item(client, domain="self", kind="fact", statement="User prefers focused work blocks.", metadata={"theme": "work_style"})
+  _create_item(client, domain="self", kind="fact", statement="User likes reusable systems.", metadata={"theme": "work_style"})
+
+  wiki_schema = WikiSchema(
+    pages=[
+      WikiPageDefinition(
+        name="career",
+        title="Career",
+        description="Professional journey",
+        domains=["self"],
+        kinds=["fact"],
+        themes=["career"],
+      ),
+      WikiPageDefinition(
+        name="workstyle",
+        title="Workstyle",
+        description="How work gets done",
+        domains=["self"],
+        kinds=["fact"],
+        themes=["work_style"],
+      ),
+    ],
+  )
+  llm_client = FakeWikiLLMClient()
+  client.app.state.settings.wiki_min_facts_per_page = 1
+  runner = _build_runner(client, wiki_schema=wiki_schema, llm_client=llm_client)
+
+  report = runner.run(page_name="career")
+
+  assert report.pages_built == 1
+  page = client.app.state.memory_service.get_wiki_page("career")
+  assert page is not None
+  content = strip_cached_page_metadata(page.content_md)
+  assert "## Related Pages" in content
+  assert "[Workstyle](wiki:workstyle)" in content
+
+
+def test_wiki_index_includes_cached_only_non_schema_pages(client):
+  wiki_schema = WikiSchema(
+    pages=[
+      WikiPageDefinition(
+        name="career",
+        title="Career",
+        description="Professional journey",
+        domains=["self"],
+        kinds=["fact"],
+      ),
+    ],
+  )
+  llm_client = FakeWikiLLMClient()
+  runner = _build_runner(client, wiki_schema=wiki_schema, llm_client=llm_client)
+  client.app.state.memory_service.upsert_wiki_page(
+    page_name="scratchpad",
+    title="Scratchpad",
+    content_md="# Scratchpad",
+    facts_count=1,
+    reflections_count=0,
+  )
+
+  report = runner.run(page_name="index")
+
+  assert report.pages_built == 1
+  index_page = client.app.state.memory_service.get_wiki_page("index")
+  assert index_page is not None
+  index_content = strip_cached_page_metadata(index_page.content_md)
+  assert "`scratchpad`" in index_content
+
+
+def test_navigation_pages_can_build_without_schema_file(client):
+  client.app.state.settings.wiki_schema_path = "/tmp/missing_wiki_schema.yaml"
+  client.app.state.wiki_runner.schema = None
+  _create_item(client, domain="self", kind="summary", statement="Fresh summary without schema.")
+
+  report = client.app.state.wiki_runner.run(page_name="log")
+
+  assert report.errors == 0
+  log_page = client.app.state.memory_service.get_wiki_page("log")
+  assert log_page is not None
+  assert "Fresh summary without schema." in strip_cached_page_metadata(log_page.content_md)
+
+
+def test_wiki_runner_retries_schema_load_after_missing_file(client):
+  _create_item(client, domain="self", kind="fact", statement="User builds durable systems.")
+  _create_item(client, domain="self", kind="fact", statement="User values observable delivery.")
+
+  client.app.state.settings.wiki_schema_path = "/tmp/missing_wiki_schema_retry.yaml"
+  client.app.state.wiki_runner.schema = None
+
+  first_report = client.app.state.wiki_runner.run(page_name="log")
+  assert first_report.errors == 0
+  assert client.app.state.memory_service.get_wiki_page("career") is None
+
+  wiki_schema = WikiSchema(
+    pages=[
+      WikiPageDefinition(
+        name="career",
+        title="Career",
+        description="Professional journey",
+        domains=["self"],
+        kinds=["fact"],
+      ),
+    ],
+  )
+  _install_wiki_schema(client, wiki_schema=wiki_schema)
+  client.app.state.settings.wiki_min_facts_per_page = 1
+  client.app.state.wiki_runner.llm_client = FakeWikiLLMClient()
+  client.app.state.wiki_runner.schema = None
+
+  second_report = client.app.state.wiki_runner.run(page_name="career")
+
+  assert second_report.pages_built == 1
+  assert client.app.state.memory_service.get_wiki_page("career") is not None
+
+
+def test_wiki_index_prefers_schema_title_over_cached_title(client):
+  wiki_schema = WikiSchema(
+    pages=[
+      WikiPageDefinition(
+        name="career",
+        title="Career From Schema",
+        description="Professional journey",
+        domains=["self"],
+        kinds=["fact"],
+      ),
+    ],
+  )
+  llm_client = FakeWikiLLMClient()
+  runner = _build_runner(client, wiki_schema=wiki_schema, llm_client=llm_client)
+  client.app.state.memory_service.upsert_wiki_page(
+    page_name="career",
+    title="Old Cached Title",
+    content_md="# Career",
+    facts_count=1,
+    reflections_count=0,
+  )
+
+  report = runner.run(page_name="index")
+
+  assert report.pages_built == 1
+  index_page = client.app.state.memory_service.get_wiki_page("index")
+  assert index_page is not None
+  index_content = strip_cached_page_metadata(index_page.content_md)
+  assert "`Career From Schema` (`career`)" in index_content
+  assert "Old Cached Title" not in index_content
+
+
+def test_memory_service_invalidates_navigation_pages_for_non_schema_activity(client):
+  _create_item(client, domain="self", kind="fact", statement="User builds automation systems.")
+  _create_item(client, domain="self", kind="fact", statement="User values observable delivery.")
+
+  wiki_schema = WikiSchema(
+    pages=[
+      WikiPageDefinition(
+        name="career",
+        title="Career",
+        description="Professional journey",
+        domains=["self"],
+        kinds=["fact"],
+      ),
+    ],
+  )
+  llm_client = FakeWikiLLMClient()
+  runner = _build_runner(client, wiki_schema=wiki_schema, llm_client=llm_client)
+  runner.run()
+
+  index_before = client.app.state.memory_service.get_wiki_page("index")
+  log_before = client.app.state.memory_service.get_wiki_page("log")
+  assert index_before is not None
+  assert log_before is not None
+  assert index_before.invalidated_at is None
+  assert log_before.invalidated_at is None
+
+  _create_item(client, domain="self", kind="summary", statement="Fresh summary for the activity log.")
+
+  index_after = client.app.state.memory_service.get_wiki_page("index")
+  log_after = client.app.state.memory_service.get_wiki_page("log")
+  assert index_after is not None
+  assert log_after is not None
+  assert index_after.invalidated_at is not None
+  assert log_after.invalidated_at is not None
 
 
 def test_wiki_build_skips_unchanged_cached_page(client):
@@ -250,7 +486,6 @@ def test_wiki_build_updates_when_page_definition_changes(client):
     ],
   )
   _install_wiki_schema(client, wiki_schema=updated_schema)
-  runner.schema = None
 
   report = runner.run(page_name="test")
 
@@ -280,10 +515,12 @@ def test_wiki_build_skips_page_with_insufficient_facts(client):
 
   report = runner.run()
 
-  assert report.pages_built == 0
+  assert report.pages_built == 2
   assert report.pages_skipped == 1
   assert report.errors == 0
   assert client.app.state.memory_service.get_wiki_page("test") is None
+  assert client.app.state.memory_service.get_wiki_page("index") is not None
+  assert client.app.state.memory_service.get_wiki_page("log") is not None
 
 
 def test_memory_service_invalidates_only_matching_themed_pages(client):
@@ -391,6 +628,162 @@ def test_memory_service_invalidates_supported_fact_like_kinds(client, kind):
 
   assert page is not None
   assert page.invalidated_at is not None
+
+
+def test_wiki_build_related_pages_prefers_built_pages(client):
+  # When two schema neighbors have the same base score, the one already built
+  # in the DB gets a score bonus and should appear first in related pages.
+  _create_item(client, domain="self", kind="fact", statement="User builds automation.", metadata={"theme": "career"})
+  _create_item(client, domain="self", kind="fact", statement="User values autonomy.", metadata={"theme": "career"})
+  _create_item(client, domain="self", kind="fact", statement="User has strong values.", metadata={"theme": "values"})
+  _create_item(client, domain="self", kind="fact", statement="User prefers minimalism.", metadata={"theme": "values"})
+
+  wiki_schema = WikiSchema(
+    pages=[
+      WikiPageDefinition(
+        name="career",
+        title="Career",
+        description="Professional journey",
+        domains=["self"],
+        kinds=["fact"],
+        themes=["career"],
+      ),
+      WikiPageDefinition(
+        name="values",
+        title="Values",
+        description="Personal values",
+        domains=["self"],
+        kinds=["fact"],
+        themes=["values"],
+      ),
+      WikiPageDefinition(
+        name="workstyle",
+        title="Workstyle",
+        description="Daily work habits",
+        domains=["self"],
+        kinds=["fact"],
+        themes=["workstyle"],
+      ),
+    ],
+  )
+  llm_client = FakeWikiLLMClient()
+  client.app.state.settings.wiki_min_facts_per_page = 1
+  runner = _build_runner(client, wiki_schema=wiki_schema, llm_client=llm_client)
+
+  # Build values first so it becomes a built page
+  runner.run(page_name="values")
+
+  # Now build career — values (already built) should rank above workstyle (not built)
+  runner.run(page_name="career")
+
+  career_page = client.app.state.memory_service.get_wiki_page("career")
+  assert career_page is not None
+  content = strip_cached_page_metadata(career_page.content_md)
+  assert "## Related Pages" in content
+  # values was built before career run — gets the built-page bonus; workstyle was not
+  values_pos = content.find("[Values](wiki:values)")
+  workstyle_pos = content.find("[Workstyle](wiki:workstyle)")
+  assert values_pos != -1
+  assert workstyle_pos != -1
+  assert values_pos < workstyle_pos, "values (built) should appear before workstyle (unbuilt)"
+
+
+def test_wiki_build_related_pages_uses_description_overlap(client):
+  # Pages whose descriptions share keywords with the current page should score
+  # higher than equally-structured pages with unrelated descriptions.
+  _create_item(client, domain="self", kind="fact", statement="User builds career systems.", metadata={"theme": "career"})
+  _create_item(client, domain="self", kind="fact", statement="User pursues career growth.", metadata={"theme": "career"})
+  _create_item(client, domain="self", kind="fact", statement="User has strong ethics.", metadata={"theme": "ethics"})
+  _create_item(client, domain="self", kind="fact", statement="User values integrity.", metadata={"theme": "ethics"})
+  _create_item(client, domain="self", kind="fact", statement="User enjoys hobbies.", metadata={"theme": "leisure"})
+  _create_item(client, domain="self", kind="fact", statement="User likes reading.", metadata={"theme": "leisure"})
+
+  wiki_schema = WikiSchema(
+    pages=[
+      WikiPageDefinition(
+        name="career",
+        title="Career",
+        description="Career development and professional growth",
+        domains=["self"],
+        kinds=["fact"],
+        themes=["career"],
+      ),
+      WikiPageDefinition(
+        name="ethics",
+        title="Ethics",
+        # description shares "professional" with career description
+        description="Professional ethics and integrity standards",
+        domains=["self"],
+        kinds=["fact"],
+        themes=["ethics"],
+      ),
+      WikiPageDefinition(
+        name="leisure",
+        title="Leisure",
+        # description shares nothing meaningful with career description
+        description="Hobbies and free time activities",
+        domains=["self"],
+        kinds=["fact"],
+        themes=["leisure"],
+      ),
+    ],
+  )
+  llm_client = FakeWikiLLMClient()
+  client.app.state.settings.wiki_min_facts_per_page = 1
+  runner = _build_runner(client, wiki_schema=wiki_schema, llm_client=llm_client)
+
+  runner.run(page_name="career")
+
+  career_page = client.app.state.memory_service.get_wiki_page("career")
+  assert career_page is not None
+  content = strip_cached_page_metadata(career_page.content_md)
+  assert "## Related Pages" in content
+  # ethics description shares "professional" with career — should rank above leisure
+  ethics_pos = content.find("[Ethics](wiki:ethics)")
+  leisure_pos = content.find("[Leisure](wiki:leisure)")
+  assert ethics_pos != -1
+  assert leisure_pos != -1
+  assert ethics_pos < leisure_pos, "ethics (description overlap) should appear before leisure (no overlap)"
+
+
+def test_wiki_build_passes_related_pages_to_llm_client(client):
+  # The runner must forward the computed related_pages list to synthesize_page
+  # so the LLM can generate inline cross-links.
+  _create_item(client, domain="self", kind="fact", statement="User values systems thinking.", metadata={"theme": "career"})
+  _create_item(client, domain="self", kind="fact", statement="User pursues professional growth.", metadata={"theme": "career"})
+  _create_item(client, domain="self", kind="fact", statement="User focuses daily on focused blocks.", metadata={"theme": "work_style"})
+  _create_item(client, domain="self", kind="fact", statement="User minimises interruptions.", metadata={"theme": "work_style"})
+
+  wiki_schema = WikiSchema(
+    pages=[
+      WikiPageDefinition(
+        name="career",
+        title="Career",
+        description="Professional journey",
+        domains=["self"],
+        kinds=["fact"],
+        themes=["career"],
+      ),
+      WikiPageDefinition(
+        name="workstyle",
+        title="Workstyle",
+        description="Daily work habits",
+        domains=["self"],
+        kinds=["fact"],
+        themes=["work_style"],
+      ),
+    ],
+  )
+  llm_client = FakeWikiLLMClient()
+  client.app.state.settings.wiki_min_facts_per_page = 1
+  runner = _build_runner(client, wiki_schema=wiki_schema, llm_client=llm_client)
+
+  runner.run(page_name="career")
+
+  career_call = next(c for c in llm_client.synthesized_pages if c["page_name"] == "career")
+  assert career_call["related_pages"] is not None
+  related_names = [p["name"] for p in career_call["related_pages"]]
+  assert "workstyle" in related_names
 
 
 def test_memory_service_ignores_invalid_wiki_schema_on_write(client, tmp_path):

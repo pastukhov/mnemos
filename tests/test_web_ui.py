@@ -46,8 +46,66 @@ def test_web_overview_reports_counts(client):
   assert body["status"] == "ready"
   assert body["pending_candidates"] == 1
   assert "wiki_pages:0" in body["features"]
+  assert body["wiki"]["total_pages"] == 0
+  assert body["wiki"]["canonical_pages"] == 0
   self_domain = next(item for item in body["domains"] if item["domain"] == "self")
   assert self_domain["items_total"] == 1
+
+
+def test_web_wiki_health_reports_page_kinds_and_candidates(client):
+  client.app.state.memory_service.upsert_wiki_page(
+    page_name="career",
+    title="Карьера и навыки",
+    content_md="# Career",
+    facts_count=3,
+    reflections_count=1,
+    metadata={"page_kind": "canonical", "origin": "schema", "domains": ["self"], "themes": []},
+  )
+  client.app.state.memory_service.upsert_wiki_page(
+    page_name="qa-self-systems",
+    title="Q&A: Systems",
+    content_md=(
+      "# Q&A: Systems\n\n"
+      "## Query\n\n"
+      "What kind of systems does the user build?\n\n"
+      "## Answer\n\n"
+      "Answer.\n\n"
+      "## Sources\n\n"
+      "- [career](wiki:career)\n\n"
+      "## Merge Provenance\n\n"
+      "- qa-self-a :: A?\n"
+      "- qa-self-b :: B?\n"
+      "- qa-self-c :: C?\n"
+      "- qa-self-d :: D?\n"
+    ),
+    facts_count=4,
+    reflections_count=0,
+    metadata={"page_kind": "query", "origin": "query_answer", "domains": ["self"], "merge_count": 4},
+  )
+
+  response = client.get("/ui/api/wiki/health")
+  body = response.json()
+
+  assert response.status_code == 200
+  assert body["total_pages"] == 2
+  assert body["canonical_pages"] == 1
+  assert body["query_pages"] == 1
+  assert body["canonical_drift_pages"] == []
+  assert body["orphaned_query_pages"] == []
+  assert body["stale_navigation_pages"] == []
+  assert body["action_required_findings"] == [
+    "missing_source_refs_pages",
+    "canonicalization_candidates",
+  ]
+  assert body["warning_findings"] == [
+    "missing_provenance_pages",
+    "missing_source_highlights_pages",
+    "overmerged_query_pages",
+    "editorial_structure_issues",
+  ]
+  assert body["overmerged_query_pages"] == ["qa-self-systems (4/3)"]
+  assert body["canonicalization_candidates"] == ["qa-self-systems -> career"]
+  assert body["missing_page_candidates"] == []
 
 
 def test_web_import_preview_and_apply_are_idempotent(client):

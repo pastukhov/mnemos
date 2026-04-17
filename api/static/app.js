@@ -151,6 +151,28 @@ const translations = {
       regenerate: "Обновить страницу",
       facts_count: "Фактов: {count}",
       updated_at: "Обновлено: {value}",
+      health_title: "Состояние wiki",
+      page_kind: "Тип: {value}",
+      origin: "Источник: {value}",
+      canonical_target: "Canonical: {value}",
+      merge_count: "Слияний: {count}",
+      fresh_pages: "Свежих: {count}",
+      stale_pages: "Устаревших: {count}",
+      action_findings: "Требуют действия",
+      warning_findings: "Предупреждения",
+      overmerged: "Пересжатые страницы",
+      candidates: "Кандидаты на canonicalization",
+      none: "нет",
+      maintenance_refresh: "Обновить qa-*",
+      maintenance_canonicalize: "Канонизировать",
+      maintenance_rebuild: "Пересобрать",
+      maintenance_running: "Выполняется…",
+      maintenance_refresh_done: "Обновлено: {refreshed}, удалено: {pruned}",
+      maintenance_canonicalize_done: "Канонизировано: {canonicalized}",
+      maintenance_rebuild_done: "Пересобрано: {rebuilt}",
+      maintenance_error: "Ошибка: {error}",
+      weakly_connected: "Слабо связанные страницы",
+      editorial_issues: "Структурные проблемы",
     },
     help: {
       what_is: {
@@ -331,6 +353,28 @@ const translations = {
       regenerate: "Regenerate page",
       facts_count: "Facts: {count}",
       updated_at: "Updated: {value}",
+      health_title: "Wiki health",
+      page_kind: "Kind: {value}",
+      origin: "Origin: {value}",
+      canonical_target: "Canonical: {value}",
+      merge_count: "Merges: {count}",
+      fresh_pages: "Fresh: {count}",
+      stale_pages: "Stale: {count}",
+      action_findings: "Action required",
+      warning_findings: "Warnings",
+      overmerged: "Overmerged pages",
+      candidates: "Canonicalization candidates",
+      none: "none",
+      maintenance_refresh: "Refresh qa-*",
+      maintenance_canonicalize: "Canonicalize",
+      maintenance_rebuild: "Rebuild",
+      maintenance_running: "Running…",
+      maintenance_refresh_done: "Refreshed: {refreshed}, pruned: {pruned}",
+      maintenance_canonicalize_done: "Canonicalized: {canonicalized}",
+      maintenance_rebuild_done: "Rebuilt: {rebuilt}",
+      maintenance_error: "Error: {error}",
+      weakly_connected: "Weakly connected pages",
+      editorial_issues: "Editorial structure issues",
     },
     help: {
       what_is: {
@@ -480,6 +524,68 @@ async function loadOverview() {
 
 function translateCheck(value) {
   return value === "ok" ? t("status.ok") : t("status.failed");
+}
+
+function renderInlineMarkdown(text) {
+  let html = escapeHtml(text);
+  html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+  html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
+  html = html.replace(/\[([^\]]+)\]\((wiki:([a-z0-9_-]+))\)/gi, '<a href="#wiki:$2" data-wiki-link="$2">$1</a>');
+  html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
+  return html;
+}
+
+function renderMarkdown(markdown) {
+  const lines = (markdown || "").replace(/\r\n/g, "\n").split("\n");
+  const blocks = [];
+  let paragraph = [];
+  let listItems = [];
+
+  const flushParagraph = () => {
+    if (!paragraph.length) return;
+    blocks.push(`<p>${renderInlineMarkdown(paragraph.join(" "))}</p>`);
+    paragraph = [];
+  };
+
+  const flushList = () => {
+    if (!listItems.length) return;
+    blocks.push(`<ul>${listItems.map((item) => `<li>${renderInlineMarkdown(item)}</li>`).join("")}</ul>`);
+    listItems = [];
+  };
+
+  lines.forEach((rawLine) => {
+    const line = rawLine.trim();
+    if (!line) {
+      flushParagraph();
+      flushList();
+      return;
+    }
+
+    const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
+    if (headingMatch) {
+      flushParagraph();
+      flushList();
+      const level = headingMatch[1].length;
+      blocks.push(`<h${level}>${renderInlineMarkdown(headingMatch[2])}</h${level}>`);
+      return;
+    }
+
+    const listMatch = line.match(/^[-*]\s+(.+)$/);
+    if (listMatch) {
+      flushParagraph();
+      listItems.push(listMatch[1]);
+      return;
+    }
+
+    flushList();
+    paragraph.push(line);
+  });
+
+  flushParagraph();
+  flushList();
+
+  return blocks.join("");
 }
 
 function bindRecentActions() {
@@ -648,6 +754,15 @@ function bindReviewActions() {
 
 function bindWikiActions() {
   document.getElementById("refresh-wiki").addEventListener("click", () => loadWikiPages());
+  document.getElementById("wiki-page-content").addEventListener("click", async (event) => {
+    const link = event.target.closest("[data-wiki-link]");
+    if (!link) return;
+    event.preventDefault();
+    const pageName = link.dataset.wikiLink;
+    if (!pageName) return;
+    switchPanel("wiki");
+    await loadWikiPage(pageName);
+  });
   document.getElementById("wiki-regenerate").addEventListener("click", async () => {
     if (!state.currentWikiPageName) return;
     const response = await fetch(`/api/wiki/pages/${encodeURIComponent(state.currentWikiPageName)}/regenerate`, {
@@ -659,11 +774,56 @@ function bindWikiActions() {
     await loadWikiPages();
     loadOverview();
   });
+  document.getElementById("wiki-maintenance-refresh").addEventListener("click", () =>
+    runWikiMaintenance("/api/wiki/maintenance/refresh", (data) =>
+      formatMessage("wiki.maintenance_refresh_done", {
+        refreshed: (data.refreshed || []).length,
+        pruned: (data.pruned || []).length,
+      })
+    )
+  );
+  document.getElementById("wiki-maintenance-canonicalize").addEventListener("click", () =>
+    runWikiMaintenance("/api/wiki/maintenance/canonicalize", (data) =>
+      formatMessage("wiki.maintenance_canonicalize_done", {
+        canonicalized: (data.canonicalized || []).length,
+      })
+    )
+  );
+  document.getElementById("wiki-maintenance-rebuild").addEventListener("click", () =>
+    runWikiMaintenance("/api/wiki/maintenance/rebuild", (data) =>
+      formatMessage("wiki.maintenance_rebuild_done", {
+        rebuilt: (data.rebuilt || []).length,
+      })
+    )
+  );
+}
+
+async function runWikiMaintenance(endpoint, formatResult) {
+  const resultEl = document.getElementById("wiki-maintenance-result");
+  resultEl.textContent = t("wiki.maintenance_running");
+  try {
+    const response = await fetch(endpoint, {method: "POST"});
+    const data = await response.json();
+    if (!response.ok) {
+      resultEl.textContent = formatMessage("wiki.maintenance_error", {error: data.detail || t("common.unknown_error")});
+      return;
+    }
+    resultEl.textContent = formatResult(data);
+    await loadWikiPages();
+    loadOverview();
+  } catch (err) {
+    resultEl.textContent = formatMessage("wiki.maintenance_error", {error: String(err)});
+  }
 }
 
 async function loadWikiPages() {
-  const response = await fetch("/api/wiki/pages");
+  const [response, healthResponse] = await Promise.all([
+    fetch("/api/wiki/pages"),
+    fetch("/ui/api/wiki/health"),
+  ]);
   const data = await response.json();
+  const health = await healthResponse.json();
+  renderWikiHealth(health);
   renderWikiPages(data.items || []);
   if (!state.currentWikiPageName && data.items?.length) {
     await loadWikiPage(data.items[0].name);
@@ -709,6 +869,7 @@ function renderWikiPages(items) {
         ${item.is_stale ? `<span class="pill pill--accent">${escapeHtml(t("wiki.stale"))}</span>` : ""}
       </div>
       <div class="result-card__meta">
+        <span class="pill">${escapeHtml(item.governance?.page_kind || t("wiki.none"))}</span>
         <span class="pill">${escapeHtml(formatMessage("wiki.facts_count", {count: item.facts_count}))}</span>
         <span class="pill">${escapeHtml(formatMessage("wiki.updated_at", {value: formatDateTime(item.updated_at)}))}</span>
       </div>
@@ -722,11 +883,15 @@ function renderWikiPages(items) {
 function renderWikiPage(page) {
   document.getElementById("wiki-page-title").textContent = page.title;
   document.getElementById("wiki-page-meta").textContent = [
+    page.governance?.page_kind ? formatMessage("wiki.page_kind", {value: page.governance.page_kind}) : null,
+    page.governance?.origin ? formatMessage("wiki.origin", {value: page.governance.origin}) : null,
+    page.governance?.canonical_target ? formatMessage("wiki.canonical_target", {value: page.governance.canonical_target}) : null,
+    Number.isFinite(page.governance?.merge_count) && page.governance?.merge_count > 0 ? formatMessage("wiki.merge_count", {count: page.governance.merge_count}) : null,
     formatMessage("wiki.facts_count", {count: page.facts_count}),
     formatMessage("wiki.updated_at", {value: formatDateTime(page.updated_at)}),
     page.is_stale ? t("wiki.stale") : null,
   ].filter(Boolean).join(" • ");
-  document.getElementById("wiki-page-content").textContent = page.content;
+  document.getElementById("wiki-page-content").innerHTML = renderMarkdown(page.content);
   document.getElementById("wiki-regenerate").hidden = false;
 }
 
@@ -735,6 +900,33 @@ function renderWikiEmptyState() {
   document.getElementById("wiki-page-meta").textContent = "";
   document.getElementById("wiki-page-content").textContent = t("wiki.empty");
   document.getElementById("wiki-regenerate").hidden = true;
+}
+
+function renderWikiHealth(health) {
+  const root = document.getElementById("wiki-health");
+  if (!root) return;
+  root.innerHTML = `
+    <article class="result-card">
+      <div class="wiki-page-card__head">
+        <strong>${escapeHtml(t("wiki.health_title"))}</strong>
+      </div>
+      <div class="result-card__meta">
+        <span class="pill">${escapeHtml(formatMessage("overview.wiki_summary", {count: health.total_pages || 0}))}</span>
+        <span class="pill">${escapeHtml(formatMessage("wiki.fresh_pages", {count: health.fresh_pages || 0}))}</span>
+        <span class="pill">${escapeHtml(formatMessage("wiki.stale_pages", {count: health.stale_pages || 0}))}</span>
+        <span class="pill">${escapeHtml(formatMessage("wiki.action_findings", {count: (health.action_required_findings || []).length}))}</span>
+        <span class="pill">${escapeHtml(formatMessage("wiki.warning_findings", {count: (health.warning_findings || []).length}))}</span>
+        <span class="pill">${escapeHtml(`canonical:${health.canonical_pages || 0}`)}</span>
+        <span class="pill">${escapeHtml(`query:${health.query_pages || 0}`)}</span>
+      </div>
+      <p class="muted"><strong>${escapeHtml(t("wiki.action_findings"))}:</strong> ${escapeHtml((health.action_required_findings || []).join(", ") || t("wiki.none"))}</p>
+      <p class="muted"><strong>${escapeHtml(t("wiki.warning_findings"))}:</strong> ${escapeHtml((health.warning_findings || []).join(", ") || t("wiki.none"))}</p>
+      <p class="muted"><strong>${escapeHtml(t("wiki.overmerged"))}:</strong> ${escapeHtml((health.overmerged_query_pages || []).join(", ") || t("wiki.none"))}</p>
+      <p class="muted"><strong>${escapeHtml(t("wiki.candidates"))}:</strong> ${escapeHtml((health.canonicalization_candidates || []).join(", ") || t("wiki.none"))}</p>
+      ${(health.weakly_connected_pages || []).length ? `<p class="muted"><strong>${escapeHtml(t("wiki.weakly_connected"))}:</strong> ${escapeHtml((health.weakly_connected_pages || []).join(", "))}</p>` : ""}
+      ${(health.editorial_structure_issues || []).length ? `<p class="muted"><strong>${escapeHtml(t("wiki.editorial_issues"))}:</strong> ${escapeHtml((health.editorial_structure_issues || []).join(", "))}</p>` : ""}
+    </article>
+  `;
 }
 
 function highlightWikiSelection(name) {

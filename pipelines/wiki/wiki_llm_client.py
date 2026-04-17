@@ -16,6 +16,7 @@ Given:
 2. A list of facts (atomic statements)
 3. A list of reflections (patterns and insights derived from facts)
 4. Optionally, existing page content to update
+5. Optionally, a list of related wiki pages
 
 Your responsibilities:
 1. Generate clear, structured markdown content
@@ -25,6 +26,9 @@ Your responsibilities:
 5. Reference facts and reflections naturally - don't make up information
 6. When updating existing content, integrate new information without full regeneration
 7. Keep content concise and well-organized
+8. If related pages are listed, link to them inline within the prose using
+   [Page Title](wiki:page-name) syntax where genuinely relevant — not as a
+   standalone list. Only link where the concept actually appears in the content.
 
 IMPORTANT RULES:
 - Do NOT invent information beyond what's in the facts and reflections
@@ -33,6 +37,7 @@ IMPORTANT RULES:
 - Facts are the source of truth - use them as evidence for claims
 - Reflections provide context and patterns
 - If existing_content is provided, treat it as context for updates
+- Wiki cross-links must use the exact format: [Title](wiki:name)
 
 Output ONLY markdown content with no JSON wrapping, no code blocks, no meta tags."""
 
@@ -47,6 +52,7 @@ class WikiLLMClient(ABC):
         facts: list[str],
         reflections: list[str],
         existing_content: str | None = None,
+        related_pages: list[dict[str, str]] | None = None,
     ) -> str:
         """Synthesize a markdown wiki page from facts and reflections.
 
@@ -55,6 +61,7 @@ class WikiLLMClient(ABC):
             facts: List of factual statements to synthesize
             reflections: List of reflection/pattern statements
             existing_content: Optional existing page content to update
+            related_pages: Optional list of related pages (dicts with 'name' and 'title')
 
         Returns:
             Markdown string for the wiki page
@@ -71,6 +78,7 @@ class MockWikiLLMClient(WikiLLMClient):
         facts: list[str],
         reflections: list[str],
         existing_content: str | None = None,
+        related_pages: list[dict[str, str]] | None = None,
     ) -> str:
         """Synthesize page by concatenating facts and reflections.
 
@@ -79,6 +87,7 @@ class MockWikiLLMClient(WikiLLMClient):
             facts: List of factual statements
             reflections: List of reflection statements
             existing_content: Optional existing content (prepended)
+            related_pages: Optional list of related pages (ignored in mock)
 
         Returns:
             Simple markdown combining all inputs
@@ -181,6 +190,7 @@ class OpenAICompatibleWikiLLMClient(WikiLLMClient):
         facts: list[str],
         reflections: list[str],
         existing_content: str | None = None,
+        related_pages: list[dict[str, str]] | None = None,
     ) -> str:
         """Synthesize page using LLM API.
 
@@ -189,6 +199,7 @@ class OpenAICompatibleWikiLLMClient(WikiLLMClient):
             facts: List of factual statements
             reflections: List of reflection statements
             existing_content: Optional existing content for updates
+            related_pages: Optional list of related pages (dicts with 'name' and 'title')
 
         Returns:
             Markdown string returned by LLM
@@ -220,6 +231,16 @@ class OpenAICompatibleWikiLLMClient(WikiLLMClient):
             "Reflections:",
             reflections_text,
         ]
+
+        if related_pages:
+            user_message_parts.extend(
+                [
+                    "",
+                    "Related Pages (link to these inline using [Title](wiki:name) syntax where genuinely relevant):",
+                ]
+            )
+            for page in related_pages:
+                user_message_parts.append(f"- {page['title']} (wiki:{page['name']})")
 
         if existing_content:
             user_message_parts.extend(

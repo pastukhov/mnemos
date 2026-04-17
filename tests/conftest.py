@@ -15,6 +15,9 @@ from pipelines.extract.fact_runner import FactExtractionRunner
 from pipelines.reflect.reflection_llm_client import MockReflectionLLMClient
 from pipelines.reflect.reflection_runner import ReflectionRunner
 from pipelines.wiki.wiki_llm_client import MockWikiLLMClient
+from pipelines.wiki.wiki_lint_runner import WikiLintRunner
+from pipelines.wiki.wiki_query_runner import WikiQueryRunner
+from pipelines.wiki.wiki_canonicalization_runner import WikiCanonicalizationRunner
 from pipelines.wiki.wiki_runner import WikiBuildRunner
 from workers.pipeline_worker import PipelineWorker
 
@@ -125,11 +128,30 @@ def client():
   )
   app.state.wiki_llm_client = MockWikiLLMClient()
   app.state.wiki_runner = WikiBuildRunner(app.state.memory_service, app.state.wiki_llm_client, settings)
+  app.state.wiki_lint_runner = WikiLintRunner(
+    app.state.memory_service,
+    settings,
+    wiki_runner=app.state.wiki_runner,
+  )
+  app.state.wiki_query_runner = WikiQueryRunner(
+    app.state.memory_service,
+    app.state.retrieval_service,
+    settings,
+    wiki_runner=app.state.wiki_runner,
+  )
+  app.state.wiki_canonicalization_runner = WikiCanonicalizationRunner(
+    app.state.memory_service,
+    settings,
+    wiki_runner=app.state.wiki_runner,
+  )
   app.state.pipeline_worker = PipelineWorker(
     memory_service=app.state.memory_service,
     fact_runner=app.state.fact_runner,
     reflection_runner=app.state.reflection_runner,
     wiki_runner=app.state.wiki_runner,
+    wiki_lint_runner=app.state.wiki_lint_runner,
+    wiki_query_runner=app.state.wiki_query_runner,
+    wiki_canonicalization_runner=app.state.wiki_canonicalization_runner,
     interval_seconds=settings.pipeline_worker_interval_seconds,
   )
   app.state.pipeline_worker_task = None

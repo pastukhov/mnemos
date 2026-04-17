@@ -1,7 +1,9 @@
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+from pipelines.wiki.constants import NAVIGATION_PAGE_NAMES
 
 
 class WikiPageDefinition(BaseModel):
@@ -14,6 +16,15 @@ class WikiPageDefinition(BaseModel):
     kinds: list[str] = Field(description="Filter by memory item kinds (e.g., ['fact', 'reflection'])")
     themes: list[str] = Field(default_factory=list, description="Optional themes (e.g., ['motivation'])")
 
+    @field_validator("name")
+    @classmethod
+    def validate_reserved_page_name(cls, value: str) -> str:
+        normalized = value.strip()
+        if normalized in NAVIGATION_PAGE_NAMES:
+            reserved = ", ".join(sorted(NAVIGATION_PAGE_NAMES))
+            raise ValueError(f"page name '{normalized}' is reserved for synthetic wiki pages: {reserved}")
+        return normalized
+
 
 class WikiSchema(BaseModel):
     """Schema for wiki generation configuration"""
@@ -21,6 +32,18 @@ class WikiSchema(BaseModel):
     pages: list[WikiPageDefinition] = Field(description="List of wiki pages to generate")
     output_dir: str = Field(default="data/wiki", description="Directory for wiki output")
     default_domain: str = Field(default="self", description="Default domain for filtering")
+
+    @model_validator(mode="after")
+    def validate_unique_page_names(self) -> "WikiSchema":
+        seen: set[str] = set()
+        duplicates: list[str] = []
+        for page in self.pages:
+            if page.name in seen:
+                duplicates.append(page.name)
+            seen.add(page.name)
+        if duplicates:
+            raise ValueError(f"duplicate wiki page names: {', '.join(sorted(set(duplicates)))}")
+        return self
 
     def get_page(self, name: str) -> WikiPageDefinition | None:
         """Get a page definition by name"""

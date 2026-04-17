@@ -118,7 +118,45 @@ class MemoryItemRepository:
     query = select(MemoryItem).where(MemoryItem.id.in_(ids))
     return list(self.session.execute(query).scalars())
 
+  def list_recent(
+    self,
+    *,
+    status: str | None = "accepted",
+    kinds: Sequence[str] | None = None,
+    limit: int = 20,
+  ) -> list[MemoryItem]:
+    query = select(MemoryItem)
+    if status is not None:
+      query = query.where(MemoryItem.status == status)
+    if kinds:
+      query = query.where(MemoryItem.kind.in_(list(kinds)))
+    query = query.order_by(MemoryItem.created_at.desc()).limit(limit)
+    return list(self.session.execute(query).scalars())
+
   def touch(self, item: MemoryItem) -> MemoryItem:
+    item.updated_at = datetime.now(UTC)
+    self.session.add(item)
+    self.session.flush()
+    return item
+
+  def update(
+    self,
+    item: MemoryItem,
+    *,
+    domain: str,
+    kind: str,
+    statement: str,
+    confidence: float | None,
+    metadata: dict[str, object] | None,
+    status: str | None = None,
+  ) -> MemoryItem:
+    item.domain = domain
+    item.kind = kind
+    item.statement = statement
+    item.confidence = confidence
+    item.metadata_json = metadata
+    if status is not None:
+      item.status = status
     item.updated_at = datetime.now(UTC)
     self.session.add(item)
     self.session.flush()

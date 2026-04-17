@@ -467,16 +467,88 @@ class WebDomainSummary(BaseModel):
   items_total: int
 
 
+class WikiMaintenanceActionResponse(BaseModel):
+  action: str
+  refreshed: list[str] = Field(default_factory=list)
+  pruned: list[str] = Field(default_factory=list)
+  deduped: list[str] = Field(default_factory=list)
+  promoted: list[str] = Field(default_factory=list)
+  canonicalized: list[str] = Field(default_factory=list)
+  canonical_targets: list[str] = Field(default_factory=list)
+  rebuilt: list[str] = Field(default_factory=list)
+
+
+class WikiMaintenanceHistoryResponse(BaseModel):
+  available: bool
+  fact_domains: list[str] = Field(default_factory=list)
+  reflection_domains: list[str] = Field(default_factory=list)
+  wiki_pages: list[str] = Field(default_factory=list)
+  refreshed_query_pages: list[str] = Field(default_factory=list)
+  pruned_query_pages: list[str] = Field(default_factory=list)
+  deduped_query_pages: list[str] = Field(default_factory=list)
+  promoted_query_pages: list[str] = Field(default_factory=list)
+  canonicalized_query_pages: list[str] = Field(default_factory=list)
+  canonicalized_targets: list[str] = Field(default_factory=list)
+  lint_action_required_findings: list[str] = Field(default_factory=list)
+  lint_warning_findings: list[str] = Field(default_factory=list)
+  lint_canonical_drift_pages: list[str] = Field(default_factory=list)
+  lint_orphaned_query_pages: list[str] = Field(default_factory=list)
+  errors: int = 0
+
+
+class WebWikiHealthResponse(BaseModel):
+  total_pages: int
+  fresh_pages: int
+  stale_pages: int
+  canonical_pages: int
+  query_pages: int
+  navigation_pages: int
+  action_required_findings: list[str] = Field(default_factory=list)
+  warning_findings: list[str] = Field(default_factory=list)
+  canonical_drift_pages: list[str] = Field(default_factory=list)
+  orphaned_query_pages: list[str] = Field(default_factory=list)
+  stale_navigation_pages: list[str] = Field(default_factory=list)
+  overmerged_query_pages: list[str] = Field(default_factory=list)
+  canonicalization_candidates: list[str] = Field(default_factory=list)
+  missing_page_candidates: list[str] = Field(default_factory=list)
+  weakly_connected_pages: list[str] = Field(default_factory=list)
+  editorial_structure_issues: list[str] = Field(default_factory=list)
+
+
 class WebOverviewResponse(BaseModel):
   status: str
   checks: ReadinessCheckResponse
   domains: list[WebDomainSummary]
   pending_candidates: int
   features: list[str]
+  wiki: WebWikiHealthResponse
 
 
 class WebListItemsResponse(BaseModel):
   items: list[MemoryItemResponse]
+
+
+class WikiPageGovernanceResponse(BaseModel):
+  page_kind: str | None = None
+  origin: str | None = None
+  domains: list[str] = Field(default_factory=list)
+  themes: list[str] = Field(default_factory=list)
+  canonical_target: str | None = None
+  merge_count: int = 0
+  superseded_by: str | None = None
+  query: str | None = None
+  last_maintained_at: datetime | None = None
+
+  @classmethod
+  def from_metadata(cls, metadata: dict[str, Any] | None) -> "WikiPageGovernanceResponse":
+    payload = dict(metadata or {})
+    value = payload.get("last_maintained_at")
+    if isinstance(value, str):
+      try:
+        payload["last_maintained_at"] = datetime.fromisoformat(value)
+      except ValueError:
+        payload["last_maintained_at"] = None
+    return cls.model_validate(payload)
 
 
 class WikiPageSummaryResponse(BaseModel):
@@ -488,6 +560,7 @@ class WikiPageSummaryResponse(BaseModel):
   reflections_count: int
   updated_at: datetime
   is_stale: bool
+  governance: WikiPageGovernanceResponse = Field(default_factory=WikiPageGovernanceResponse)
 
   @model_validator(mode="before")
   @classmethod
@@ -501,6 +574,7 @@ class WikiPageSummaryResponse(BaseModel):
       "reflections_count": getattr(value, "reflections_count"),
       "updated_at": getattr(value, "generated_at"),
       "is_stale": getattr(value, "invalidated_at") is not None,
+      "governance": WikiPageGovernanceResponse.from_metadata(getattr(value, "metadata_json", None)),
     }
 
 
@@ -514,6 +588,7 @@ class WikiPageResponse(BaseModel):
   updated_at: datetime
   is_stale: bool
   content: str
+  governance: WikiPageGovernanceResponse = Field(default_factory=WikiPageGovernanceResponse)
 
   @model_validator(mode="before")
   @classmethod
@@ -528,6 +603,78 @@ class WikiPageResponse(BaseModel):
 
 class WikiPageListResponse(BaseModel):
   items: list[WikiPageSummaryResponse]
+
+
+class WikiLintFindingResponse(BaseModel):
+  code: str
+  severity: str
+  count: int
+  items: list[str] = Field(default_factory=list)
+
+
+class WikiLintResponse(BaseModel):
+  stale_pages: list[str]
+  empty_pages: list[str]
+  orphan_facts_count: int
+  contradictions: list[str]
+  fixed_pages: list[str]
+  missing_related_pages: list[str]
+  missing_provenance_pages: list[str]
+  missing_source_refs_pages: list[str]
+  missing_source_highlights_pages: list[str]
+  low_source_coverage_pages: list[str]
+  unresolved_source_refs: list[str]
+  broken_wiki_links: list[str]
+  canonical_drift_pages: list[str]
+  orphaned_query_pages: list[str]
+  stale_navigation_pages: list[str]
+  overmerged_query_pages: list[str]
+  canonicalization_candidates: list[str]
+  missing_page_candidates: list[str]
+  weakly_connected_pages: list[str] = Field(default_factory=list)
+  editorial_structure_issues: list[str] = Field(default_factory=list)
+  findings: list[WikiLintFindingResponse] = Field(default_factory=list)
+
+
+class WikiQueryRequest(BaseModel):
+  question: str
+  domain: str = "self"
+  top_k: int = 5
+  auto_persist: bool | None = None
+  persist_page_name: str | None = None
+  persist_title: str | None = None
+
+  @field_validator("question")
+  @classmethod
+  def validate_question(cls, value: str) -> str:
+    return ensure_non_empty_text(value, field_name="question")
+
+  @field_validator("domain")
+  @classmethod
+  def validate_query_domain(cls, value: str) -> str:
+    return ensure_allowed_domain(value)
+
+  @field_validator("top_k")
+  @classmethod
+  def validate_query_top_k(cls, value: int) -> int:
+    return ensure_top_k(value)
+
+  @field_validator("persist_page_name", "persist_title")
+  @classmethod
+  def validate_optional_query_page_fields(cls, value: str | None) -> str | None:
+    if value is None:
+      return None
+    normalized = value.strip()
+    return normalized or None
+
+
+class WikiQueryResponse(BaseModel):
+  answer: str
+  sources: list[str]
+  confidence: float
+  persisted_page_name: str | None = None
+  promoted_canonical_target: str | None = None
+  outcome: str = "ephemeral"
 
 
 class ImportPreviewRequest(BaseModel):

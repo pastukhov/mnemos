@@ -34,6 +34,8 @@ def compute_page_fingerprint(
     page_def: WikiPageDefinition,
     facts: list[str],
     reflections: list[str],
+    related_page_names: list[str] | None = None,
+    source_refs: list[str] | None = None,
 ) -> str:
     """Compute fingerprint from page definition and source items."""
     return hashlib.sha256(
@@ -47,6 +49,8 @@ def compute_page_fingerprint(
                     "kinds": page_def.kinds,
                     "themes": page_def.themes,
                 },
+                "related_pages": related_page_names or [],
+                "source_refs": source_refs or [],
                 "items": {
                     "facts": facts,
                     "reflections": reflections,
@@ -83,3 +87,67 @@ def strip_cached_page_metadata(content_md: str) -> str:
     content_md,
     count=1,
   )
+
+
+def enrich_page_markdown(
+  *,
+  content_md: str,
+  page_def: WikiPageDefinition,
+  facts_count: int,
+  reflections_count: int,
+  related_pages: list[dict[str, str]],
+  source_refs: list[str],
+  source_highlights: list[dict[str, str]],
+) -> str:
+  """Append deterministic related/provenance sections to a generated page."""
+  base_content = re.sub(
+    r"\n## Related Pages\n.*$|\n## Source Highlights\n.*$|\n## Provenance\n.*$",
+    "",
+    content_md.strip(),
+    flags=re.DOTALL,
+  ).rstrip()
+
+  sections = [base_content]
+
+  if related_pages:
+    sections.extend(
+      [
+        "",
+        "## Related Pages",
+        "",
+        *[
+          f"- [{page['title']}](wiki:{page['name']})"
+          for page in related_pages
+        ],
+      ]
+    )
+
+  if source_highlights:
+    sections.extend(
+      [
+        "",
+        "## Source Highlights",
+        "",
+        *[
+          f"- [{highlight['source_ref']}] {highlight['statement']}"
+          for highlight in source_highlights
+        ],
+      ]
+    )
+
+  provenance_lines = [
+    "",
+    "## Provenance",
+    "",
+    f"- domains: {', '.join(page_def.domains)}",
+    f"- kinds: {', '.join(page_def.kinds)}",
+    f"- facts_count: {facts_count}",
+    f"- reflections_count: {reflections_count}",
+  ]
+  if page_def.themes:
+    provenance_lines.append(f"- themes: {', '.join(page_def.themes)}")
+  for source_ref in source_refs:
+    provenance_lines.append(f"- source_ref: {source_ref}")
+  sections.extend(provenance_lines)
+
+  return "\n".join(sections).strip()

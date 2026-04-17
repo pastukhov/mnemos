@@ -7,8 +7,10 @@ from mcp_server.tools.get_memory_item import register as register_get_memory_ite
 from mcp_server.tools.get_schema_info import register as register_get_schema_info
 from mcp_server.tools.list_review_sessions import register as register_list_review_sessions
 from mcp_server.tools.list_wiki_pages import register as register_list_wiki_pages
+from mcp_server.tools.lint_wiki import register as register_lint_wiki
 from mcp_server.tools.propose_memory_item import register as register_propose_memory_item
 from mcp_server.tools.propose_memory_items import register as register_propose_memory_items
+from mcp_server.tools.query_wiki import register as register_query_wiki
 from mcp_server.tools.read_wiki_page import register as register_read_wiki_page
 from mcp_server.tools.search_memory import register as register_search_memory
 from mcp_server.tools.shortlist_memory_items import register as register_shortlist_memory_items
@@ -28,3 +30,5 @@ def register_tools(mcp: FastMCP, client: MnemosRestClient) -> None:
   register_get_context(mcp, client)
   register_list_wiki_pages(mcp, client)
   register_read_wiki_page(mcp, client)
+  register_lint_wiki(mcp, client)
+  register_query_wiki(mcp, client)

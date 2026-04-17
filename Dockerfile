@@ -18,6 +18,7 @@ COPY pipelines /app/pipelines
 COPY scripts /app/scripts
 COPY services /app/services
 COPY vector /app/vector
+COPY workers /app/workers
 COPY data /app/data
 
 RUN pip install --no-cache-dir -e .

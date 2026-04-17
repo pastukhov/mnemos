@@ -16,6 +16,8 @@ from api.schemas import (
   MemoryQueryResponse,
   MemorySchemaInfoResponse,
   ReviewSessionListResponse,
+  WikiLintResponse,
+  WikiQueryResponse,
   WikiPageListResponse,
   WikiPageResponse,
 )
@@ -84,6 +86,37 @@ class MnemosRestClient:
     if response.status_code == 404:
       return None
     return WikiPageResponse.model_validate(response.json())
+
+  def lint_wiki(self, *, domain: str | None = None, fix: bool = False) -> WikiLintResponse:
+    params: dict[str, object] = {"fix": str(fix).lower()}
+    if domain is not None:
+      params["domain"] = domain
+    response = self._request("POST", "/api/wiki/lint", params=params)
+    return WikiLintResponse.model_validate(response.json())
+
+  def query_wiki(
+    self,
+    *,
+    question: str,
+    domain: str = "self",
+    top_k: int = 5,
+    auto_persist: bool | None = None,
+    persist_page_name: str | None = None,
+    persist_title: str | None = None,
+  ) -> WikiQueryResponse:
+    response = self._request(
+      "POST",
+      "/api/wiki/query",
+      json={
+        "question": question,
+        "domain": domain,
+        "top_k": top_k,
+        "auto_persist": auto_persist,
+        "persist_page_name": persist_page_name,
+        "persist_title": persist_title,
+      },
+    )
+    return WikiQueryResponse.model_validate(response.json())
 
   def add_memory_note(
     self,

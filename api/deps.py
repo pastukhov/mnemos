@@ -6,6 +6,9 @@ from sqlalchemy.orm import Session
 from services.memory_governance_service import MemoryGovernanceService
 from services.memory_service import MemoryService
 from services.retrieval_service import RetrievalService
+from pipelines.wiki.wiki_canonicalization_runner import WikiCanonicalizationRunner
+from pipelines.wiki.wiki_lint_runner import WikiLintRunner
+from pipelines.wiki.wiki_query_runner import WikiQueryRunner
 from pipelines.wiki.wiki_runner import WikiBuildRunner
 
 
@@ -32,6 +35,10 @@ def get_governance_service(request: Request) -> MemoryGovernanceService:
 
 def get_wiki_runner(request: Request) -> WikiBuildRunner:
   return getattr(request.app.state, "wiki_runner", None)
+
+
+def get_wiki_lint_runner(request: Request) -> WikiLintRunner:
+  return getattr(request.app.state, "wiki_lint_runner", None)
 
 
 def get_checked_memory_service(
@@ -74,5 +81,46 @@ def get_checked_wiki_runner(
     raise HTTPException(
       status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
       detail="wiki runner unavailable",
+    )
+  return runner
+
+
+def get_checked_wiki_lint_runner(
+  runner: WikiLintRunner = Depends(get_wiki_lint_runner),
+) -> WikiLintRunner:
+  if runner is None:
+    raise HTTPException(
+      status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+      detail="wiki lint runner unavailable",
+    )
+  return runner
+
+
+def get_wiki_query_runner(request: Request) -> WikiQueryRunner:
+  return getattr(request.app.state, "wiki_query_runner", None)
+
+
+def get_checked_wiki_query_runner(
+  runner: WikiQueryRunner = Depends(get_wiki_query_runner),
+) -> WikiQueryRunner:
+  if runner is None:
+    raise HTTPException(
+      status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+      detail="wiki query runner unavailable",
+    )
+  return runner
+
+
+def get_wiki_canonicalization_runner(request: Request) -> WikiCanonicalizationRunner:
+  return getattr(request.app.state, "wiki_canonicalization_runner", None)
+
+
+def get_checked_wiki_canonicalization_runner(
+  runner: WikiCanonicalizationRunner = Depends(get_wiki_canonicalization_runner),
+) -> WikiCanonicalizationRunner:
+  if runner is None:
+    raise HTTPException(
+      status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+      detail="wiki canonicalization runner unavailable",
     )
   return runner

@@ -70,6 +70,16 @@ class TestWikiPageDefinition:
         )
         assert page.themes == []
 
+    def test_wiki_page_rejects_reserved_navigation_names(self):
+        with pytest.raises(ValidationError):
+            WikiPageDefinition(
+                name="index",
+                title="Index",
+                description="Reserved page",
+                domains=["self"],
+                kinds=["fact"],
+            )
+
 
 class TestWikiSchema:
     """Test WikiSchema model"""
@@ -111,6 +121,27 @@ class TestWikiSchema:
         """Test WikiSchema with empty pages list"""
         schema = WikiSchema(pages=[])
         assert schema.pages == []
+
+    def test_wiki_schema_rejects_duplicate_page_names(self):
+        with pytest.raises(ValidationError):
+            WikiSchema(
+                pages=[
+                    WikiPageDefinition(
+                        name="career",
+                        title="Career",
+                        description="One",
+                        domains=["self"],
+                        kinds=["fact"],
+                    ),
+                    WikiPageDefinition(
+                        name="career",
+                        title="Career 2",
+                        description="Two",
+                        domains=["self"],
+                        kinds=["reflection"],
+                    ),
+                ]
+            )
 
     def test_get_page_found(self):
         """Test get_page returns page when found"""

@@ -14,6 +14,7 @@ from db.repositories.memory_relations import MemoryRelationRepository
 from db.repositories.reflection_metrics import ReflectionMetricRepository
 from db.repositories.wiki_page_cache import WikiPageCacheRepository
 from embeddings.base import Embedder
+from pipelines.wiki.constants import NAVIGATION_PAGE_NAMES
 from pipelines.wiki.wiki_schema import WikiSchema
 from vector.qdrant_client import MnemosQdrantClient
 
@@ -59,6 +60,51 @@ class MemoryService:
   def create_item_record(self, payload: MemoryCreateRequest):
     return self._create_item(payload)
 
+  def upsert_item_by_source_ref(
+    self,
+    payload: MemoryCreateRequest,
+    *,
+    source_type: str,
+    source_id: str,
+  ):
+    vector = self.embedder.embed_text(payload.statement)
+    with self.session_factory() as session:
+      repository = MemoryItemRepository(session)
+      item = repository.get_by_source_ref(source_type=source_type, source_id=source_id)
+      if item is None:
+        item = repository.create(
+          domain=payload.domain,
+          kind=payload.kind,
+          statement=payload.statement,
+          confidence=payload.confidence,
+          metadata=payload.metadata,
+        )
+      else:
+        item = repository.update(
+          item,
+          domain=payload.domain,
+          kind=payload.kind,
+          statement=payload.statement,
+          confidence=payload.confidence,
+          metadata=payload.metadata,
+        )
+      self.qdrant.ensure_collection(self.settings.collection_for_domain(payload.domain))
+      self.qdrant.upsert_item(
+        collection_name=self.settings.collection_for_domain(payload.domain),
+        item_id=str(item.id),
+        vector=vector,
+        payload={
+          "item_id": str(item.id),
+          "domain": item.domain,
+          "kind": item.kind,
+          "status": item.status,
+        },
+      )
+      session.commit()
+      self.invalidate_wiki_pages_for_item(item=item)
+      session.refresh(item)
+      return item
+
   def get_item_by_source_ref(self, *, source_type: str, source_id: str):
     with self.session_factory() as session:
       repository = MemoryItemRepository(session)
@@ -73,6 +119,17 @@ class MemoryService:
     with self.session_factory() as session:
       repository = MemoryItemRepository(session)
       return repository.list_by_domain(domain=domain, status=status)
+
+  def list_recent_items(
+    self,
+    *,
+    status: str | None = "accepted",
+    kinds: tuple[str, ...] | list[str] | None = None,
+    limit: int = 20,
+  ):
+    with self.session_factory() as session:
+      repository = MemoryItemRepository(session)
+      return repository.list_recent(status=status, kinds=kinds, limit=limit)
 
   def list_domains_with_items(
     self,
@@ -132,6 +189,7 @@ class MemoryService:
     content_md: str,
     facts_count: int,
     reflections_count: int,
+    metadata: dict[str, object] | None = None,
     generated_at=None,
     invalidated_at=None,
   ):
@@ -143,42 +201,67 @@ class MemoryService:
         content_md=content_md,
         facts_count=facts_count,
         reflections_count=reflections_count,
+        metadata=metadata,
         generated_at=generated_at,
         invalidated_at=invalidated_at,
       )
+      if page_name not in NAVIGATION_PAGE_NAMES:
+        repository.mark_invalidated("index")
       session.commit()
       session.refresh(page)
       return page
 
+  def delete_wiki_page(self, page_name: str) -> bool:
+    with self.session_factory() as session:
+      repository = WikiPageCacheRepository(session)
+      deleted = repository.delete_page(page_name)
+      if deleted and page_name not in NAVIGATION_PAGE_NAMES:
+        repository.mark_invalidated("index")
+      session.commit()
+      return deleted
+
   def invalidate_wiki_pages_for_item(self, *, item) -> list[str]:
     wiki_invalidation_kinds = set(self.settings.wiki_facts_kinds) | set(self.settings.wiki_reflections_kinds)
     if item.kind not in wiki_invalidation_kinds:
-      return []
-
-    schema = self._load_wiki_schema()
-    if schema is None:
-      return []
+      with self.session_factory() as session:
+        repository = WikiPageCacheRepository(session)
+        page_names: list[str] = []
+        log_page = repository.mark_invalidated("log")
+        if log_page is not None:
+          page_names.append("log")
+        index_page = repository.mark_invalidated("index")
+        if index_page is not None:
+          page_names.append("index")
+        session.commit()
+      return sorted(set(page_names))
 
     page_names: list[str] = []
-    theme = None
-    if item.metadata_json:
-      theme = item.metadata_json.get("theme")
-
     with self.session_factory() as session:
       repository = WikiPageCacheRepository(session)
-      for page_def in schema.pages:
-        if item.domain not in page_def.domains:
-          continue
-        if item.kind not in page_def.kinds:
-          continue
-        if page_def.themes:
-          if theme not in page_def.themes:
+      schema = self._load_wiki_schema()
+      if schema is not None:
+        theme = None
+        if item.metadata_json:
+          theme = item.metadata_json.get("theme")
+        for page_def in schema.pages:
+          if item.domain not in page_def.domains:
             continue
-        page = repository.mark_invalidated(page_def.name)
-        if page is not None:
-          page_names.append(page_def.name)
+          if item.kind not in page_def.kinds:
+            continue
+          if page_def.themes:
+            if theme not in page_def.themes:
+              continue
+          page = repository.mark_invalidated(page_def.name)
+          if page is not None:
+            page_names.append(page_def.name)
+      log_page = repository.mark_invalidated("log")
+      if log_page is not None:
+        page_names.append("log")
+      index_page = repository.mark_invalidated("index")
+      if index_page is not None:
+        page_names.append("index")
       session.commit()
-    return page_names
+    return sorted(set(page_names))
 
   def record_ingestion_metrics(
     self,

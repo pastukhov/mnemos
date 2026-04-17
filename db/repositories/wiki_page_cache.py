@@ -37,6 +37,7 @@ class WikiPageCacheRepository:
     content_md: str,
     facts_count: int,
     reflections_count: int,
+    metadata: dict[str, object] | None = None,
     generated_at: datetime | None = None,
     invalidated_at: datetime | None = None,
   ) -> WikiPageCache:
@@ -48,6 +49,7 @@ class WikiPageCacheRepository:
         content_md=content_md,
         facts_count=facts_count,
         reflections_count=reflections_count,
+        metadata=metadata,
         generated_at=generated_at,
         invalidated_at=invalidated_at,
       )
@@ -58,6 +60,7 @@ class WikiPageCacheRepository:
       content_md=content_md,
       facts_count=facts_count,
       reflections_count=reflections_count,
+      metadata_json=metadata,
       generated_at=generated_at or datetime.now(UTC),
       invalidated_at=invalidated_at,
     )
@@ -76,6 +79,7 @@ class WikiPageCacheRepository:
         content_md=content_md,
         facts_count=facts_count,
         reflections_count=reflections_count,
+        metadata=metadata,
         generated_at=generated_at,
         invalidated_at=invalidated_at,
       )
@@ -98,6 +102,14 @@ class WikiPageCacheRepository:
     self.session.flush()
     return page
 
+  def delete_page(self, page_name: str) -> bool:
+    page = self.get(page_name)
+    if page is None:
+      return False
+    self.session.delete(page)
+    self.session.flush()
+    return True
+
   def _update_page(
     self,
     page: WikiPageCache,
@@ -106,6 +118,7 @@ class WikiPageCacheRepository:
     content_md: str,
     facts_count: int,
     reflections_count: int,
+    metadata: dict[str, object] | None,
     generated_at: datetime | None,
     invalidated_at: datetime | None,
   ) -> WikiPageCache:
@@ -113,6 +126,7 @@ class WikiPageCacheRepository:
     page.content_md = content_md
     page.facts_count = facts_count
     page.reflections_count = reflections_count
+    page.metadata_json = metadata
     page.generated_at = generated_at or datetime.now(UTC)
     page.invalidated_at = invalidated_at
     self.session.add(page)
